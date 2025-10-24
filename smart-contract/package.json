@@ -1,0 +1,28 @@
+{
+  "name": "voting-contract",
+  "version": "1.0.0",
+  "description": "Simple blockchain-based voting smart contract using Hardhat",
+  "main": "index.js",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "deploy": "npx hardhat run scripts/deploy.js --network hardhat",
+    "test": "npx hardhat test"
+  },
+  "keywords": [
+    "solidity",
+    "hardhat",
+    "voting",
+    "blockchain",
+    "smart-contract"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^5.8.0",
+    "hardhat": "^2.26.3"
+  },
+  "dependencies": {
+    "prompt-sync": "^4.2.0"
+  }
+}
