@@ -5,10 +5,13 @@ export default function Register() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState(1);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     contact: "",
+    password: "",
+    confirmPassword: "",
     photo: null,
     walletAddress: "",
   });
@@ -16,6 +19,9 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [photoCaptured, setPhotoCaptured] = useState(false);
 
+  // -------------------------------
+  // Step 1 Validation
+  // -------------------------------
   const validateStep1 = () => {
     const newErrors = {};
 
@@ -28,15 +34,25 @@ export default function Register() {
       newErrors.email = "Valid email is required";
     }
 
-    if (!formData.contact.trim() || !/^\d{10}$/.test(formData.contact)) {
-      newErrors.contact = "Valid 10-digit contact number required";
+    if (!/^\d{10}$/.test(formData.contact)) {
+      newErrors.contact = "Valid 10-digit contact number is required";
+    }
+
+    if (!formData.password.trim() || formData.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
     }
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
+  // -------------------------------
+  // Step 2 — Photo Capture
+  // -------------------------------
   const capturePhoto = () => {
     setPhotoCaptured(true);
     setFormData({ ...formData, photo: "captured_photo_data" });
@@ -60,7 +76,6 @@ export default function Register() {
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="bg-white rounded-xl shadow-lg p-8">
-
           <h2 className="text-3xl font-bold mb-6 text-center">
             Voter Registration
           </h2>
@@ -87,7 +102,9 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Step 1 – Basic Info */}
+          {/* -------------------------------
+              STEP 1 — BASIC INFO
+          ------------------------------- */}
           {step === 1 && (
             <div>
               <h3 className="text-xl font-semibold mb-4">
@@ -155,20 +172,71 @@ export default function Register() {
                     </p>
                   )}
                 </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block mb-2 font-medium">Password</label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    className={`w-full px-4 py-2 rounded-lg border ${
+                      errors.password ? "border-red-500" : "border-gray-300"
+                    }`}
+                    placeholder="Enter password"
+                  />
+                  {errors.password && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block mb-2 font-medium">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    className={`w-full px-4 py-2 rounded-lg border ${
+                      errors.confirmPassword
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                    placeholder="Re-enter password"
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <button
                 onClick={() => {
                   if (validateStep1()) setStep(2);
                 }}
-                className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition"
+                className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold"
               >
                 Next: Capture Photo
               </button>
             </div>
           )}
 
-          {/* Step 2 – Photo */}
+          {/* -------------------------------
+              STEP 2 — PHOTO
+          ------------------------------- */}
           {step === 2 && (
             <div>
               <h3 className="text-xl font-semibold mb-4">
@@ -203,7 +271,7 @@ export default function Register() {
                 {photoCaptured && (
                   <button
                     onClick={() => setPhotoCaptured(false)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold transition"
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold"
                   >
                     🔄 Retake
                   </button>
@@ -229,7 +297,9 @@ export default function Register() {
             </div>
           )}
 
-          {/* Step 3 – Wallet */}
+          {/* -------------------------------
+              STEP 3 — WALLET
+          ------------------------------- */}
           {step === 3 && (
             <div>
               <h3 className="text-xl font-semibold mb-4">

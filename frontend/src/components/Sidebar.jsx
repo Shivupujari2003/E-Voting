@@ -16,7 +16,7 @@ export default function Sidebar({ navigate }) {
         </button>
 
         <button
-          onClick={() => navigate("/audit")}
+          onClick={() => navigate("/audit-log")}
           className="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg transition"
         >
           🔍 Audit Log
