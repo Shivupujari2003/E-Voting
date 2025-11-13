@@ -1,8 +1,8 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "D:\\Projects\\Blockchain-voting\\smart-contract\\contracts\\Voting.sol": {
-      "lastModificationDate": 1757491949349,
+    "D:\\Blockchain-voting\\smart-contract\\contracts\\Voting.sol": {
+      "lastModificationDate": 1761316574291,
       "contentHash": "7d66c816a34b43b0891ebe57bc3e189a",
       "sourceName": "contracts/Voting.sol",
       "solcConfig": {
