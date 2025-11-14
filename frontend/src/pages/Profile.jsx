@@ -1,57 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { fetchUserProfile, updateUserProfile, updateUserFace } from "../services/api";
 
 export default function ProfilePage() {
-  const navigate = useNavigate();  // ✅ FIXED
+  const navigate = useNavigate();
 
-  // Mock user (since AppContext is removed)
-  const [user, setUser] = useState({
-    name: "Demo User",
-    email: "demo@vote.com",
-    contact: "9876543210",
-    walletAddress: "0x1234abcd5678ef90abcd1234ef567890abcd1234",
-    voterId: "VTRABCD123",
-    registeredAt: "2024-01-10T10:20:00Z",
-  });
-
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState({ email: "", contact: "" });
 
-  const [formData, setFormData] = useState({
-    email: user.email,
-    contact: user.contact,
-  });
+  // Fetch profile on mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await fetchUserProfile();
+        setUser(data);
+        setFormData({ email: data.email, contact: data.contact });
+      } catch (err) {
+        alert("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
 
-  const handleUpdate = () => {
-    setUser({ ...user, ...formData });
-    alert("Profile updated!");
-    setEditing(false);
+  const handleUpdate = async () => {
+    try {
+      const updated = await updateUserProfile(formData);
+      setUser(updated);
+      alert("Profile updated successfully!");
+      setEditing(false);
+    } catch (err) {
+      alert("Failed to update profile");
+    }
   };
+
+  const handleFaceUpdate = async () => {
+    try {
+      await updateUserFace();
+      alert("Face recognition updated successfully!");
+    } catch (err) {
+      alert("Failed to update face recognition");
+    }
+  };
+
+  if (loading) return <p className="p-8 text-center">Loading profile...</p>;
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      
-      {/* Navbar */}
       <Navbar />
 
-      {/* Page Container */}
       <div className="container mx-auto px-4 py-8 max-w-3xl">
-
-        {/* Back Button */}
         <button
-          onClick={() => navigate("/voter/dashboard")}  // ✅ FIXED
+          onClick={() => navigate("/voter/dashboard")}
           className="mb-6 bg-white hover:bg-gray-100 px-4 py-2 rounded-lg shadow-sm transition"
         >
           ← Back to Dashboard
         </button>
 
-        {/* Profile Card */}
         <div className="bg-white rounded-xl shadow-lg p-8">
-
-          {/* Header Row */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold">👤 My Profile</h2>
-
             <button
               onClick={() => setEditing(!editing)}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
@@ -60,19 +72,14 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          {/* Profile Fields */}
           <div className="space-y-6">
-
-            {/* Name */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Full Name</label>
               <p className="text-lg font-semibold">{user.name}</p>
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Email Address</label>
-
               {editing ? (
                 <input
                   type="email"
@@ -85,10 +92,8 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Contact */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Contact Number</label>
-
               {editing ? (
                 <input
                   type="tel"
@@ -101,27 +106,21 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Wallet Address */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Wallet Address</label>
               <p className="text-lg font-mono break-all">{user.walletAddress}</p>
             </div>
 
-            {/* Voter ID */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Voter ID</label>
               <p className="text-lg font-semibold">{user.voterId}</p>
             </div>
 
-            {/* Registered On */}
             <div>
               <label className="block text-sm text-gray-500 mb-1">Registered On</label>
-              <p className="text-lg">
-                {new Date(user.registeredAt).toLocaleDateString()}
-              </p>
+              <p className="text-lg">{new Date(user.registeredAt).toLocaleDateString()}</p>
             </div>
 
-            {/* Save Button */}
             {editing && (
               <button
                 onClick={handleUpdate}
@@ -133,14 +132,12 @@ export default function ProfilePage() {
 
             <hr className="border-gray-200 my-6" />
 
-            {/* Face Update */}
             <button
-              onClick={() => alert("Face update soon!")}
+              onClick={handleFaceUpdate}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition"
             >
               🔄 Update Face Recognition
             </button>
-
           </div>
         </div>
       </div>

@@ -1,46 +1,47 @@
-import React from "react";
+// pages/Results.js
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { fetchElectionResults } from "../services/api";
 
 export default function Results() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Read electionId from URL: /results?election=1
   const query = new URLSearchParams(location.search);
-  const electionId = Number(query.get("election")) || 1;
+  const electionId = Number(query.get("election"));
 
-  // Mock elections (same format as dashboard)
-  const elections = [
-    {
-      id: 1,
-      title: "Student Council President 2025",
-      description: "Election for new president.",
-      status: "closed",
-      totalVotes: 12,
-      endTime: new Date(Date.now() - 86400000),
-      txHash: "0xABC123RESULTHASH",
-      candidates: [
-        { id: 101, name: "Alice", votes: 6 },
-        { id: 102, name: "Bob", votes: 4 },
-        { id: 103, name: "Chris", votes: 2 },
-      ],
-    },
-    {
-      id: 2,
-      title: "Open Source Council",
-      description: "Vote for open-source representatives.",
-      status: "closed",
-      totalVotes: 45,
-      endTime: new Date(Date.now() - 86400000 * 2),
-      txHash: "0xXYZ987HASH2",
-      candidates: [
-        { id: 201, name: "Dana", votes: 25 },
-        { id: 202, name: "Ethan", votes: 20 },
-      ],
-    },
-  ];
+  const [election, setElection] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const election = elections.find((e) => e.id === electionId);
+  useEffect(() => {
+    if (!electionId) {
+      setError("No election ID provided");
+      setLoading(false);
+      return;
+    }
+
+    const loadResults = async () => {
+      try {
+        const data = await fetchElectionResults(electionId);
+        if (!data || data.error) {
+          setError(data?.error || "Failed to load election results");
+        } else {
+          setElection(data);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("An error occurred while fetching results");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadResults();
+  }, [electionId]);
+
+  if (loading) return <div className="p-8 text-center">Loading results...</div>;
+  if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
   if (!election) return <div className="p-8 text-center">Election not found</div>;
 
   const maxVotes = Math.max(...election.candidates.map((c) => c.votes));
@@ -69,9 +70,7 @@ export default function Results() {
 
             <div className="bg-green-50 rounded-lg p-4 text-center">
               <p className="text-sm text-gray-500">Candidates</p>
-              <p className="text-3xl font-bold text-green-600">
-                {election.candidates.length}
-              </p>
+              <p className="text-3xl font-bold text-green-600">{election.candidates.length}</p>
             </div>
 
             <div className="bg-purple-50 rounded-lg p-4 text-center">
@@ -82,14 +81,11 @@ export default function Results() {
 
           {/* Vote Distribution */}
           <h3 className="text-2xl font-bold mb-4">📊 Vote Distribution</h3>
-
           <div className="space-y-4 mb-10">
             {election.candidates.map((candidate) => {
-              const percentage =
-                election.totalVotes > 0
-                  ? ((candidate.votes / election.totalVotes) * 100).toFixed(1)
-                  : 0;
-
+              const percentage = election.totalVotes
+                ? ((candidate.votes / election.totalVotes) * 100).toFixed(1)
+                : 0;
               const isWinner = candidate.votes === maxVotes;
 
               return (
@@ -104,17 +100,14 @@ export default function Results() {
                       {isWinner && <span className="text-xl">🏆</span>}
                       <span className="font-semibold">{candidate.name}</span>
                     </div>
-
-                    <span className="font-bold">
-                      {candidate.votes} votes ({percentage}%)
-                    </span>
+                    <span className="font-bold">{candidate.votes} votes ({percentage}%)</span>
                   </div>
 
                   <div className="bg-gray-300 h-3 rounded-full overflow-hidden">
                     <div
                       className="bg-blue-600 h-full transition-all"
                       style={{ width: `${percentage}%` }}
-                    ></div>
+                    />
                   </div>
                 </div>
               );
@@ -127,21 +120,16 @@ export default function Results() {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-500">Election Transaction Hash</p>
-                <p className="font-mono text-blue-600 break-all">
-                  {election.txHash}
-                </p>
+                <p className="font-mono text-blue-600 break-all">{election.txHash}</p>
               </div>
-
               <div>
                 <p className="text-sm text-gray-500">Block Number</p>
-                <p className="font-mono">#{Math.floor(Math.random() * 900000)}</p>
+                <p className="font-mono">#{election.blockNumber || "N/A"}</p>
               </div>
-
               <div>
                 <p className="text-sm text-gray-500">Finalized</p>
                 <p className="font-semibold">
-                  ✓ Finalized on{" "}
-                  {new Date(election.endTime).toLocaleDateString()}
+                  ✓ Finalized on {new Date(election.endTime).toLocaleDateString()}
                 </p>
               </div>
             </div>

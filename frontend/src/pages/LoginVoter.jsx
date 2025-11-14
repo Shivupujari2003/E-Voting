@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-
+import { loginUser , verifyFace } from "../services/api";
 export default function VoterLogin() {
   const navigate = useNavigate();
 
@@ -10,37 +10,81 @@ export default function VoterLogin() {
   const [faceConfidence, setFaceConfidence] = useState(0);
   const [walletAddress, setWalletAddress] = useState("");
 
-  // STEP 1 → Check Username + Password
-  const handleCredentialsSubmit = () => {
-    if (credentials.username && credentials.password) {
-      alert("Credentials Verified!");
-      setLoginStep(2);
-    } else {
+  // ================================================================
+  // STEP 1 → CHECK USERNAME + PASSWORD (BACKEND CALL)
+  // ================================================================
+  const handleCredentialsSubmit = async () => {
+    if (!credentials.username || !credentials.password) {
       alert("Please enter username and password");
+      return;
+    }
+
+    const res = await loginUser(credentials);
+
+    if (res.error) {
+      alert(res.error);
+      return;
+    }
+
+    alert("Credentials verified!");
+    setLoginStep(2);
+  };
+
+  // ================================================================
+  // STEP 2 → FACE RECOGNITION (BACKEND CALL)
+  // ================================================================
+  const captureFace = async () => {
+    setFaceConfidence(1); // show loading UI
+
+    // Normally you would send embedding or image; here we send placeholder
+    const payload = {
+      username: credentials.username,
+      capturedEmbedding: Array(128).fill(0),
+    };
+
+    const res = await verifyFace(payload);
+
+    if (res.error) {
+      alert(res.error);
+      setFaceConfidence(0);
+      return;
+    }
+
+    setFaceConfidence(res.confidence);
+
+    if (res.confidence >= 60) {
+      alert("Face Verified: " + res.confidence + "% match!");
+      setTimeout(() => setLoginStep(3), 1200);
+    } else {
+      alert("Face match too low. Try again!");
+      setFaceConfidence(0);
     }
   };
 
-  // STEP 2 → Fake Face Recognition
-  const captureFace = () => {
-    setTimeout(() => {
-      const conf = 60 + Math.floor(Math.random() * 35); // 60%–95%
-      setFaceConfidence(conf);
-      if (conf >= 60) {
-        alert("Face recognized: " + conf + "% confidence");
-        setTimeout(() => setLoginStep(3), 1200);
-      } else {
-        alert("Low confidence. Please retry!");
-      }
-    }, 2000);
-  };
+  // ================================================================
+  // STEP 3 → WALLET CHECK (BACKEND CALL)
+  // ================================================================
+  // const connectWallet = async () => {
+  //   const mockWallet = "0x" + Math.random().toString(16).substring(2, 42);
+  //   setWalletAddress(mockWallet);
 
-  // STEP 3 → Fake MetaMask
-  const connectWallet = () => {
-    const mockWallet = "0x" + Math.random().toString(16).substring(2, 42);
-    setWalletAddress(mockWallet);
-    alert("MetaMask connected!");
-  };
+  //   const res = await verifyWallet({
+  //     username: credentials.username,
+  //     walletAddress: mockWallet,
+  //   });
 
+  //   if (res.error) {
+  //     alert(res.error);
+  //     setWalletAddress("");
+  //     return;
+  //   }
+
+  //   alert("MetaMask connected!");
+  // };
+
+  // ================================================================
+  // FINAL LOGIN SUCCESS
+  // ================================================================
   const handleLogin = () => {
     alert("Login Successful!");
     navigate("/voter/dashboard");
@@ -56,7 +100,7 @@ export default function VoterLogin() {
             Multi-Factor Voter Login
           </h2>
 
-          {/* Progress Indicators */}
+          {/* PROGRESS UI */}
           <div className="flex justify-between mb-8">
             {["Credentials", "Face Scan", "MetaMask"].map((label, index) => {
               const step = index + 1;
@@ -88,7 +132,7 @@ export default function VoterLogin() {
             })}
           </div>
 
-          {/* STEP 1 — Credentials */}
+          {/* STEP 1 — CREDENTIALS */}
           {loginStep === 1 && (
             <div className="space-y-4">
               <div>
@@ -126,7 +170,7 @@ export default function VoterLogin() {
             </div>
           )}
 
-          {/* STEP 2 — Face Recognition */}
+          {/* STEP 2 — FACE RECOGNITION */}
           {loginStep === 2 && (
             <div>
               <h3 className="text-xl font-semibold mb-4">
@@ -134,7 +178,7 @@ export default function VoterLogin() {
               </h3>
 
               <div className="w-full h-64 bg-gray-800 text-white rounded-lg flex items-center justify-center mb-4">
-                {faceConfidence === 0 ? (
+                {faceConfidence <= 1 ? (
                   <div className="text-center">
                     <div className="text-6xl mb-4">📷</div>
                     <p>Position your face in the frame</p>
@@ -147,20 +191,9 @@ export default function VoterLogin() {
                 )}
               </div>
 
-              {faceConfidence > 0 && (
-                <div className="mb-4">
-                  <div className="bg-gray-300 rounded-full h-4 overflow-hidden">
-                    <div
-                      className="bg-green-500 h-full"
-                      style={{ width: `${faceConfidence}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
               <button
                 onClick={captureFace}
-                disabled={faceConfidence > 0}
+                disabled={faceConfidence > 1}
                 className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
               >
                 📸 Capture Face
@@ -168,7 +201,7 @@ export default function VoterLogin() {
             </div>
           )}
 
-          {/* STEP 3 — MetaMask */}
+          {/* STEP 3 — WALLET */}
           {loginStep === 3 && (
             <div className="text-center">
               <div className="text-6xl mb-6">🦊</div>
@@ -203,7 +236,7 @@ export default function VoterLogin() {
             </div>
           )}
 
-          {/* Back to Home */}
+          {/* BACK */}
           <button
             onClick={() => navigate("/")}
             className="w-full mt-6 bg-gray-200 hover:bg-gray-300 py-3 rounded-lg font-semibold"

@@ -20,7 +20,7 @@ export default function Register() {
   const [errors, setErrors] = useState({});
   const [photoCaptured, setPhotoCaptured] = useState(false);
 
-  const validateStep1 = () => {
+  const validateStep1 = async() => {
     const newErrors = {};
 
     if (!formData.name.trim()) newErrors.name = "Name is required";
@@ -39,6 +39,22 @@ export default function Register() {
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
+    }
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      contact: formData.contact,
+      password: formData.password,
+      walletAddress: formData.walletAddress,
+      faceVerified: true,
+      faceEmbedding: Array(128).fill(0),
+    };
+
+    const res = await registerUser(payload);
+
+    if (res.error) {
+      alert(res.error);
+      return;
     }
 
     setErrors(newErrors);
@@ -59,23 +75,7 @@ export default function Register() {
   // BACKEND INTEGRATION — ONLY THIS PART IS UPDATED
   // =====================================================
   const handleRegister = async () => {
-    const payload = {
-      name: formData.name,
-      email: formData.email,
-      contact: formData.contact,
-      password: formData.password,
-      walletAddress: formData.walletAddress,
-      faceVerified: true,
-      faceEmbedding: Array(128).fill(0),
-    };
-
-    const res = await registerUser(payload);
-
-    if (res.error) {
-      alert(res.error);
-      return;
-    }
-
+    
     alert("Registration successful!");
     navigate("/login-voter");
   };

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { adminLogin } from "../services/api";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -7,13 +8,24 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    if (email === "admin@voting.local" && password === "SecurePass123!") {
-      alert("Admin login successful!");
-      navigate("/admin/dashboard");
-    } else {
-      alert("Invalid credentials!");
+  // =======================================================
+  // BACKEND LOGIN CALL
+  // =======================================================
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
     }
+
+    const res = await adminLogin({ email, password });
+
+    if (res.error) {
+      alert(res.error);
+      return;
+    }
+
+    alert("Admin login successful!");
+    navigate("/admin/dashboard");
   };
 
   return (
@@ -22,15 +34,10 @@ export default function AdminLogin() {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-3xl font-bold mb-6 text-center">Admin Login</h2>
 
-          {/* Demo Credentials Box */}
+          {/* Demo Info Box */}
           <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 mb-6 text-sm">
-            <p className="font-semibold mb-2">🔑 Demo Credentials:</p>
-            <p>
-              <strong>Email:</strong> admin@voting.local
-            </p>
-            <p>
-              <strong>Password:</strong> SecurePass123!
-            </p>
+            <p className="font-semibold mb-2">🔑 Admin Login</p>
+            <p>Enter your registered admin credentials.</p>
           </div>
 
           <div className="space-y-4">
@@ -42,7 +49,7 @@ export default function AdminLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300"
-                placeholder="admin@voting.local"
+                placeholder="admin@example.com"
               />
             </div>
 
