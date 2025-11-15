@@ -1,249 +1,192 @@
-import React, { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { loginUser, verifyFace } from "../services/api";
 import Navbar from "../components/Navbar";
-import { loginUser , verifyFace } from "../services/api";
+
 export default function VoterLogin() {
   const navigate = useNavigate();
+  const videoRef = useRef(null);
 
-  const [loginStep, setLoginStep] = useState(1);
-  const [credentials, setCredentials] = useState({ username: "", password: "" });
-  const [faceConfidence, setFaceConfidence] = useState(0);
-  const [walletAddress, setWalletAddress] = useState("");
+  const [step, setStep] = useState(1);
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [faceMatch, setFaceMatch] = useState(null);
+  const [wallet, setWallet] = useState("");
 
-  // ================================================================
-  // STEP 1 → CHECK USERNAME + PASSWORD (BACKEND CALL)
-  // ================================================================
-  const handleCredentialsSubmit = async () => {
-    if (!credentials.username || !credentials.password) {
-      alert("Please enter username and password");
-      return;
-    }
+  // ============================
+  // STEP 1 — CREDENTIAL CHECK
+  // ============================
+const handleLogin = async () => {
+  if (!credentials.email || !credentials.password) {
+    alert("Enter email + password");
+    return;
+  }
 
-    const res = await loginUser(credentials);
+  const res = await loginUser({
+    username: credentials.email,
+    password: credentials.password
+  });
 
-    if (res.error) {
-      alert(res.error);
-      return;
-    }
+  if (res.error) {
+    alert(res.error);
+    return;
+  }
 
-    alert("Credentials verified!");
-    setLoginStep(2);
+  startCamera();
+  setStep(2);
+};
+
+
+  // ============================
+  // CAMERA START
+  // ============================
+  const startCamera = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    videoRef.current.srcObject = stream;
+    videoRef.current.play();
   };
 
-  // ================================================================
-  // STEP 2 → FACE RECOGNITION (BACKEND CALL)
-  // ================================================================
-  const captureFace = async () => {
-    setFaceConfidence(1); // show loading UI
+  // ============================
+  // STEP 2 — CAPTURE + SEND FACE IMAGE
+  // ============================
+const captureAndVerify = async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 300;
 
-    // Normally you would send embedding or image; here we send placeholder
-    const payload = {
-      username: credentials.username,
-      capturedEmbedding: Array(128).fill(0),
-    };
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
-    const res = await verifyFace(payload);
+  const capturedImage = canvas.toDataURL("image/jpeg");
 
-    if (res.error) {
-      alert(res.error);
-      setFaceConfidence(0);
-      return;
-    }
+  const res = await verifyFace({
+    voterId: credentials.email,
+    image: capturedImage,
+  });
 
-    setFaceConfidence(res.confidence);
+  if (res.error) {
+    alert(res.error);
+    return;
+  }
 
-    if (res.confidence >= 60) {
-      alert("Face Verified: " + res.confidence + "% match!");
-      setTimeout(() => setLoginStep(3), 1200);
-    } else {
-      alert("Face match too low. Try again!");
-      setFaceConfidence(0);
-    }
-  };
+  setFaceMatch(res.confidence);
 
-  // ================================================================
-  // STEP 3 → WALLET CHECK (BACKEND CALL)
-  // ================================================================
-  // const connectWallet = async () => {
-  //   const mockWallet = "0x" + Math.random().toString(16).substring(2, 42);
-  //   setWalletAddress(mockWallet);
+  if (res.confidence >= 60) {
+    alert("Face Verified!");
+    setStep(3);
+  } else {
+    alert("Face mismatch, try again!");
+  }
+};
 
-  //   const res = await verifyWallet({
-  //     username: credentials.username,
-  //     walletAddress: mockWallet,
-  //   });
 
-  //   if (res.error) {
-  //     alert(res.error);
-  //     setWalletAddress("");
-  //     return;
-  //   }
+  // ============================
+  // STEP 3 — VERIFY WALLET
+  // ============================
+  const connectWallet = () => {
+    const mockWallet = "0x" + Math.random().toString(16).substring(2, 42);
+    setWallet(mockWallet);
 
-  //   alert("MetaMask connected!");
-  // };
-
-  // ================================================================
-  // FINAL LOGIN SUCCESS
-  // ================================================================
-  const handleLogin = () => {
-    alert("Login Successful!");
+    alert("Wallet Connected!");
     navigate("/voter/dashboard");
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
+    <div className="min-h-screen bg-gray-100">
       <Navbar />
+      <div className="max-w-xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg">
 
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
-        <div className="bg-white p-8 rounded-xl shadow-lg">
-          <h2 className="text-3xl font-bold mb-8 text-center">
-            Multi-Factor Voter Login
-          </h2>
+        <h1 className="text-3xl font-bold text-center mb-6">
+          Secure Voter Login
+        </h1>
 
-          {/* PROGRESS UI */}
-          <div className="flex justify-between mb-8">
-            {["Credentials", "Face Scan", "MetaMask"].map((label, index) => {
-              const step = index + 1;
-              const isCompleted =
-                (step === 1 && loginStep > 1) ||
-                (step === 2 && loginStep > 2) ||
-                (step === 3 && walletAddress);
-
-              const isActive = loginStep === step;
-
-              return (
-                <div key={label} className="flex-1 text-center">
-                  <div
-                    className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center mb-2 text-white font-bold
-                      ${
-                        isCompleted
-                          ? "bg-green-600"
-                          : isActive
-                          ? "bg-blue-600"
-                          : "bg-gray-400"
-                      }
-                    `}
-                  >
-                    {isCompleted ? "✓" : step}
-                  </div>
-                  <p className="text-xs">{label}</p>
+        {/* STEP INDICATOR */}
+        <div className="flex justify-between mb-8 text-center">
+          {["Credentials", "Face Scan", "Wallet"].map((s, index) => {
+            const n = index + 1;
+            return (
+              <div className="flex-1" key={index}>
+                <div className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-white 
+                  ${step === n ? "bg-blue-600" : step > n ? "bg-green-600" : "bg-gray-400"}`}>
+                  {step > n ? "✓" : n}
                 </div>
-              );
-            })}
-          </div>
-
-          {/* STEP 1 — CREDENTIALS */}
-          {loginStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block mb-2 font-medium">Username / Email</label>
-                <input
-                  type="text"
-                  value={credentials.username}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, username: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border rounded-lg"
-                  placeholder="Enter username or email"
-                />
+                <p className="text-xs mt-1">{s}</p>
               </div>
-
-              <div>
-                <label className="block mb-2 font-medium">Password</label>
-                <input
-                  type="password"
-                  value={credentials.password}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, password: e.target.value })
-                  }
-                  className="w-full px-4 py-3 border rounded-lg"
-                  placeholder="Enter password"
-                />
-              </div>
-
-              <button
-                onClick={handleCredentialsSubmit}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold"
-              >
-                Next: Face Recognition →
-              </button>
-            </div>
-          )}
-
-          {/* STEP 2 — FACE RECOGNITION */}
-          {loginStep === 2 && (
-            <div>
-              <h3 className="text-xl font-semibold mb-4">
-                Face Recognition Verification
-              </h3>
-
-              <div className="w-full h-64 bg-gray-800 text-white rounded-lg flex items-center justify-center mb-4">
-                {faceConfidence <= 1 ? (
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">📷</div>
-                    <p>Position your face in the frame</p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">✅</div>
-                    <p className="text-xl font-semibold">{faceConfidence}% Match</p>
-                  </div>
-                )}
-              </div>
-
-              <button
-                onClick={captureFace}
-                disabled={faceConfidence > 1}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
-              >
-                📸 Capture Face
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3 — WALLET */}
-          {loginStep === 3 && (
-            <div className="text-center">
-              <div className="text-6xl mb-6">🦊</div>
-
-              {!walletAddress ? (
-                <>
-                  <p className="text-gray-600 mb-4">
-                    Connect MetaMask to finish login
-                  </p>
-                  <button
-                    onClick={connectWallet}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold"
-                  >
-                    Connect MetaMask
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p className="font-semibold mb-2">Wallet Connected</p>
-                  <p className="text-gray-600 bg-gray-100 p-3 rounded font-mono break-all mb-4">
-                    {walletAddress}
-                  </p>
-
-                  <button
-                    onClick={handleLogin}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold"
-                  >
-                    ✓ Complete Login
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* BACK */}
-          <button
-            onClick={() => navigate("/")}
-            className="w-full mt-6 bg-gray-200 hover:bg-gray-300 py-3 rounded-lg font-semibold"
-          >
-            ← Back to Home
-          </button>
+            );
+          })}
         </div>
+
+        {/* STEP 1 — CREDENTIALS */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full border p-3 rounded"
+              value={credentials.email}
+              onChange={(e) =>
+                setCredentials({ ...credentials, email: e.target.value })
+              }
+            />
+
+            <input
+              type="password"
+              placeholder="Password"
+              className="w-full border p-3 rounded"
+              value={credentials.password}
+              onChange={(e) =>
+                setCredentials({ ...credentials, password: e.target.value })
+              }
+            />
+
+            <button
+              onClick={handleLogin}
+              className="w-full bg-blue-600 text-white py-3 rounded"
+            >
+              Next: Face Verification →
+            </button>
+          </div>
+        )}
+
+        {/* STEP 2 — FACE SCAN */}
+        {step === 2 && (
+          <div>
+            <video ref={videoRef} className="w-full rounded bg-black mb-4" />
+
+            {faceMatch !== null && (
+              <p className="text-center text-lg font-bold text-green-600">
+                Match: {faceMatch}%
+              </p>
+            )}
+
+            <button
+              onClick={captureAndVerify}
+              className="w-full bg-green-600 text-white py-3 rounded"
+            >
+              📸 Capture & Verify Face
+            </button>
+          </div>
+        )}
+
+        {/* STEP 3 — WALLET */}
+        {step === 3 && (
+          <div className="text-center">
+            {!wallet ? (
+              <>
+                <p className="mb-3 text-gray-600">
+                  Connect MetaMask to complete login
+                </p>
+                <button
+                  onClick={connectWallet}
+                  className="bg-orange-600 text-white px-6 py-3 rounded"
+                >
+                  Connect MetaMask
+                </button>
+              </>
+            ) : (
+              <p className="text-green-600 font-mono">{wallet}</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

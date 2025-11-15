@@ -6,12 +6,12 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Register from "./pages/Register";
 import LoginVoter from "./pages/LoginVoter";
-import AdminLogin from "./pages/LoginAdmin";
-import VoterDashboard from "./pages/VoterDashboard";
-import Results from "./pages/Result";
-import AdminDashboard from "./pages/AdminDashboard";
-import ProfilePage from "./pages/Profile";
-import AuditLogPage from "./pages/AuditLog";
+// import AdminLogin from "./pages/LoginAdmin";
+// import VoterDashboard from "./pages/VoterDashboard";
+// import Results from "./pages/Result";
+// import AdminDashboard from "./pages/AdminDashboard";
+// import ProfilePage from "./pages/Profile";
+// import AuditLogPage from "./pages/AuditLog";
 
 export default function App() {
   return (
@@ -27,18 +27,18 @@ export default function App() {
           {/* Auth Pages */}
           <Route path="/register" element={<Register />} />
           <Route path="/login-voter" element={<LoginVoter />} />
-          <Route path="/login-admin" element={<AdminLogin />} />
+          {/* <Route path="/login-admin" element={<AdminLogin />} /> */}
 
           {/* Results */}
-          <Route path="/results" element={<Results />} />
+          {/* <Route path="/results" element={<Results />} /> */}
 
           {/* Dashboards */}
-          <Route path="/voter/dashboard" element={<VoterDashboard />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          {/* <Route path="/voter/dashboard" element={<VoterDashboard />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
 
           {/* Profile */}
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/audit-log" element={<AuditLogPage />} />
+          {/* <Route path="/profile" element={<ProfilePage />} /> */}
+          {/* <Route path="/audit-log" element={<AuditLogPage />} /> */}
         </Routes>
       </div>
     </Router>
