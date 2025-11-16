@@ -68,7 +68,7 @@ export default function Register() {
 
     const imgData = canvas.toDataURL("image/jpeg");
 
-    if (formData.photos.length < 3) {
+    if (formData.photos.length < 10) {
       setFormData({
         ...formData,
         photos: [...formData.photos, imgData],
@@ -195,10 +195,10 @@ export default function Register() {
 
               <button
                 onClick={capturePhoto}
-                disabled={formData.photos.length >= 3}
+                disabled={formData.photos.length >= 10}
                 className="w-full mt-4 bg-green-600 text-white py-3 rounded disabled:opacity-50"
               >
-                Capture Photo ({formData.photos.length}/3)
+                Capture Photo ({formData.photos.length}/10)
               </button>
 
               <div className="flex gap-3 mt-4">
@@ -212,7 +212,7 @@ export default function Register() {
               </div>
 
               <button
-                disabled={formData.photos.length < 3}
+                disabled={formData.photos.length < 10}
                 onClick={() => setStep(3)}
                 className="w-full mt-6 bg-blue-600 text-white py-3 rounded disabled:opacity-50"
               >

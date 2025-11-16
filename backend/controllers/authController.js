@@ -22,7 +22,7 @@ export const registerUser = async (req, res) => {
     const voterId = email.split("@")[0] + "_" + Date.now();
 
     // Step 2: Create dataset folder for this voter
-    const voterDatasetPath = path.join(__dirname, "..", "dataset", voterId);
+    const voterDatasetPath = path.join(__dirname, "..", "dataset", email);
     fs.mkdirSync(voterDatasetPath, { recursive: true });
 
     // Step 3: Save all 3 Base64 images
@@ -34,10 +34,10 @@ export const registerUser = async (req, res) => {
     // Step 4: Run Python encoding
     const encodeScript = path.join(__dirname, "..", "python", "feature_encoding.py");
 
-    execSync(`python "${encodeScript}" ${voterId}`, { stdio: "inherit" });
+    execSync(`python "${encodeScript}" ${email}`, { stdio: "inherit" });
 
-    const faceEncodingPath = `encodings/${voterId}_face_recognition.npy`;
-    const robustEncodingPath = `encodings/${voterId}_robust.npy`;
+    const faceEncodingPath = `encodings/${email}_face_recognition.npy`;
+    const robustEncodingPath = `encodings/${email}_robust.npy`;
 
     // Step 5: Save user in DB
     const newUser = await User.create({
@@ -115,7 +115,7 @@ export const verifyFace = async (req, res) => {
     // Save incoming Base64 image
     const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ""), "base64");
     fs.writeFileSync(tempPath, buffer);
-
+    console.log("received buffer size:", buffer.length);
     // Run python verifier (your face_recog.py)
     const verifyScript = path.join(__dirname, "..", "python", "face_recog.py");
 
@@ -126,7 +126,7 @@ export const verifyFace = async (req, res) => {
       console.log("❌ Python Verification Error");
       return res.json({ success: false, confidence: 0 });
     }
-
+    console.log("Python Output:", output);
     // Python prints SUCCESS or FAILED, not confidence
     if (output.includes("SUCCESS")) {
       return res.json({ success: true, confidence: 100 });

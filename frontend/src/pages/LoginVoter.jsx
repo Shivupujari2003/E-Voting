@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginUser, verifyFace } from "../services/api";
 import Navbar from "../components/Navbar";
+import { useEffect } from "react";
 
 export default function VoterLogin() {
   const navigate = useNavigate();
@@ -47,37 +48,35 @@ const handleLogin = async () => {
 
   // ============================
   // STEP 2 — CAPTURE + SEND FACE IMAGE
-  // ============================
-const captureAndVerify = async () => {
-  const canvas = document.createElement("canvas");
-  canvas.width = 400;
-  canvas.height = 300;
+ const startContinuousVerification = () => {
+  const interval = setInterval(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 300;
 
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    const capturedImage = canvas.toDataURL("image/jpeg");
 
-  const capturedImage = canvas.toDataURL("image/jpeg");
+    const res = await verifyFace({
+      voterId: credentials.email,
+      image: capturedImage,
+    });
 
-  const res = await verifyFace({
-    voterId: credentials.email,
-    image: capturedImage,
-  });
+    if (res.success && res.confidence === 100) {
+      clearInterval(interval);  // stop loop
+      alert("Face Verified!");
+      setStep(3);
+    }
 
-  if (res.error) {
-    alert(res.error);
-    return;
-  }
-
-  setFaceMatch(res.confidence);
-
-  if (res.confidence >= 60) {
-    alert("Face Verified!");
-    setStep(3);
-  } else {
-    alert("Face mismatch, try again!");
-  }
+  }, 500); // check every 0.5 sec
 };
 
+useEffect(() => {
+  if (step === 2) {
+    startContinuousVerification();
+  }
+}, [step]);
 
   // ============================
   // STEP 3 — VERIFY WALLET
@@ -149,23 +148,12 @@ const captureAndVerify = async () => {
 
         {/* STEP 2 — FACE SCAN */}
         {step === 2 && (
-          <div>
-            <video ref={videoRef} className="w-full rounded bg-black mb-4" />
+  <div>
+    <video ref={videoRef} className="w-full rounded bg-black mb-4" />
+    <p className="text-center text-gray-600">Scanning face...</p>
+  </div>
+)}
 
-            {faceMatch !== null && (
-              <p className="text-center text-lg font-bold text-green-600">
-                Match: {faceMatch}%
-              </p>
-            )}
-
-            <button
-              onClick={captureAndVerify}
-              className="w-full bg-green-600 text-white py-3 rounded"
-            >
-              📸 Capture & Verify Face
-            </button>
-          </div>
-        )}
 
         {/* STEP 3 — WALLET */}
         {step === 3 && (
