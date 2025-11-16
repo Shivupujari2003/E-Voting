@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registerUser } from "../services/api";
+import { ethers } from "ethers";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function Register() {
     password: "",
     confirmPassword: "",
     walletAddress: "",
-    photos: []
+    photos: [],
   });
 
   // ======================================================
@@ -27,7 +28,8 @@ export default function Register() {
 
     if (!formData.name.trim()) err.name = "Name required";
     if (!/^\S+@\S+\.\S+$/.test(formData.email)) err.email = "Invalid email";
-    if (!/^\d{10}$/.test(formData.contact)) err.contact = "10-digit number required";
+    if (!/^\d{10}$/.test(formData.contact))
+      err.contact = "10-digit number required";
     if (formData.password.length < 6) err.password = "Min 6 characters";
     if (formData.password !== formData.confirmPassword)
       err.confirmPassword = "Passwords do not match";
@@ -37,7 +39,7 @@ export default function Register() {
   };
 
   // ======================================================
-  // CAMERA — Start only when STEP 2 renders
+  // CAMERA — Start only in STEP 2
   // ======================================================
   const startCamera = async () => {
     try {
@@ -77,12 +79,46 @@ export default function Register() {
   };
 
   // ======================================================
-  // CONNECT WALLET
+  // REAL METAMASK WALLET CONNECTION
   // ======================================================
-  const connectWallet = () => {
-    const mock = "0x" + Math.random().toString(16).substring(2, 42);
-    setFormData({ ...formData, walletAddress: mock });
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      alert("MetaMask is not installed");
+      return;
+    }
+
+    try {
+      // Request accounts
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+
+      // Create provider
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const walletAddress = await signer.getAddress();
+
+      setFormData({
+        ...formData,
+        walletAddress,
+      });
+    } catch (err) {
+      console.error("Wallet connection failed:", err);
+      alert("Failed to connect wallet");
+    }
   };
+
+  // Auto-update if MetaMask account changes
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        setFormData({
+          ...formData,
+          walletAddress: accounts[0] || "",
+        });
+      });
+    }
+  }, []);
 
   // ======================================================
   // FINAL REGISTER SUBMIT
@@ -104,8 +140,9 @@ export default function Register() {
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="bg-white rounded-xl shadow-xl p-8">
-
-          <h2 className="text-3xl font-bold text-center mb-6">Voter Registration</h2>
+          <h2 className="text-3xl font-bold text-center mb-6">
+            Voter Registration
+          </h2>
 
           {/* Progress Bar */}
           <div className="mb-8">
@@ -130,36 +167,52 @@ export default function Register() {
                   placeholder="Full Name"
                   className="w-full border p-2 rounded"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                 />
-                {errors.name && <p className="text-red-500">{errors.name}</p>}
+                {errors.name && (
+                  <p className="text-red-500">{errors.name}</p>
+                )}
 
                 <input
                   type="email"
                   placeholder="Email"
                   className="w-full border p-2 rounded"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                 />
-                {errors.email && <p className="text-red-500">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-red-500">{errors.email}</p>
+                )}
 
                 <input
                   type="tel"
                   placeholder="Contact Number"
                   className="w-full border p-2 rounded"
                   value={formData.contact}
-                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contact: e.target.value })
+                  }
                 />
-                {errors.contact && <p className="text-red-500">{errors.contact}</p>}
+                {errors.contact && (
+                  <p className="text-red-500">{errors.contact}</p>
+                )}
 
                 <input
                   type="password"
                   placeholder="Password"
                   className="w-full border p-2 rounded"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                 />
-                {errors.password && <p className="text-red-500">{errors.password}</p>}
+                {errors.password && (
+                  <p className="text-red-500">{errors.password}</p>
+                )}
 
                 <input
                   type="password"
@@ -167,7 +220,10 @@ export default function Register() {
                   className="w-full border p-2 rounded"
                   value={formData.confirmPassword}
                   onChange={(e) =>
-                    setFormData({ ...formData, confirmPassword: e.target.value })
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
                   }
                 />
                 {errors.confirmPassword && (
@@ -185,13 +241,18 @@ export default function Register() {
           )}
 
           {/* ======================================================
-               STEP 2 — FACE CAPTURE (3 PHOTOS)
+               STEP 2 — FACE CAPTURE (10 PHOTOS)
           ====================================================== */}
           {step === 2 && (
             <>
-              <h3 className="text-xl font-semibold mb-4">Capture Your Face</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                Capture Your Face
+              </h3>
 
-              <video ref={videoRef} className="w-full aspect-video bg-black rounded" />
+              <video
+                ref={videoRef}
+                className="w-full aspect-video bg-black rounded"
+              />
 
               <button
                 onClick={capturePhoto}
@@ -201,7 +262,7 @@ export default function Register() {
                 Capture Photo ({formData.photos.length}/10)
               </button>
 
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-3 mt-4 flex-wrap">
                 {formData.photos.map((img, i) => (
                   <img
                     key={i}
@@ -226,13 +287,19 @@ export default function Register() {
           ====================================================== */}
           {step === 3 && (
             <>
-              <h3 className="text-xl font-semibold mb-4">Connect Wallet</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                Connect Wallet
+              </h3>
 
               <div className="p-4 border rounded bg-gray-50 text-center">
                 {formData.walletAddress ? (
                   <>
-                    <p className="text-green-700 font-bold">Wallet Connected</p>
-                    <p className="text-sm font-mono break-all">{formData.walletAddress}</p>
+                    <p className="text-green-700 font-bold">
+                      Wallet Connected
+                    </p>
+                    <p className="text-sm font-mono break-all">
+                      {formData.walletAddress}
+                    </p>
                   </>
                 ) : (
                   <button
