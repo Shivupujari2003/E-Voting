@@ -170,6 +170,7 @@ def verify_voter(voter_id, tolerance=0.5):
 
     if best < tolerance:
         print("SUCCESS")
+        sys.exit(0)
         return True
 
     print("FAILED | Distance >= tolerance")
