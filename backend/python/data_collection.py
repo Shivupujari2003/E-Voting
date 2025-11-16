@@ -73,3 +73,5 @@ def collect_images(voter_id, num_samples=20):
 if __name__ == "__main__":
     voter_id = sys.argv[1] 
     collect_images(voter_id)
+
+

@@ -31,10 +31,10 @@ export const registerUser = async (req, res) => {
       fs.writeFileSync(path.join(voterDatasetPath, `${i}.jpg`), buffer);
     });
 
-    // Step 4: Run Python encoding
+    // Step 4: Run Python encoding (FORCE PYTHON 3.10)
     const encodeScript = path.join(__dirname, "..", "python", "feature_encoding.py");
 
-    execSync(`python "${encodeScript}" ${email}`, { stdio: "inherit" });
+    execSync(`py -3.10 "${encodeScript}" ${email}`, { stdio: "inherit" });
 
     const faceEncodingPath = `encodings/${email}_face_recognition.npy`;
     const robustEncodingPath = `encodings/${email}_robust.npy`;
@@ -116,18 +116,21 @@ export const verifyFace = async (req, res) => {
     const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ""), "base64");
     fs.writeFileSync(tempPath, buffer);
     console.log("received buffer size:", buffer.length);
-    // Run python verifier (your face_recog.py)
+
+    // Run python verifier (FORCE PYTHON 3.10)
     const verifyScript = path.join(__dirname, "..", "python", "face_recog.py");
 
     let output;
     try {
-      output = execSync(`python "${verifyScript}" ${voterId}`, { encoding: "utf8" });
+      output = execSync(`py -3.10 "${verifyScript}" ${voterId}`, { encoding: "utf8" });
     } catch (err) {
       console.log("❌ Python Verification Error");
       return res.json({ success: false, confidence: 0 });
     }
+
     console.log("Python Output:", output);
-    // Python prints SUCCESS or FAILED, not confidence
+
+    // Python prints SUCCESS or FAILED
     if (output.includes("SUCCESS")) {
       return res.json({ success: true, confidence: 100 });
     } else {
@@ -139,4 +142,3 @@ export const verifyFace = async (req, res) => {
     res.status(500).json({ error: "Face verification failed" });
   }
 };
-
