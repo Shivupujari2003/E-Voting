@@ -16,25 +16,18 @@ export default function Sidebar({ navigate }) {
         </button>
 
         <button
-          onClick={() => navigate("/audit-log")}
-          className="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg transition"
-        >
-          🔍 Audit Log
-        </button>
-
-        <button
           onClick={() => navigate("/profile")}
           className="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg transition"
         >
           👤 Profile
         </button>
 
-        <button
+        {/* <button
           onClick={() => navigate("/apply-candidate")}
           className="w-full text-left px-4 py-3 hover:bg-gray-100 rounded-lg transition"
         >
           📝 Apply as Candidate
-        </button>
+        </button> */}
       </nav>
     </div>
   );

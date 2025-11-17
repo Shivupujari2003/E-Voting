@@ -86,3 +86,45 @@ export const castVote = async (electionId, candidateId) => {
     return { error: "Failed to cast vote" };
   }
 };
+
+
+// GET election by ID
+export const fetchElectionResults = async (id) => {
+  try {
+    const res = await API.get(`/auth/election/${id}`);
+    return res.data;
+  } catch (err) {
+    return { error: "Failed to fetch election" };
+  }
+};
+
+
+// GET user profile
+export const fetchUserProfile = async (userId) => {
+  try {
+    const res = await API.get(`/auth/user/${userId}`);
+    return res.data;
+  } catch (err) {
+    return { error: "Failed to fetch user profile" };
+  }
+};
+
+// UPDATE user profile
+export const updateUserProfile = async (userId, updateData) => {
+  try {
+    const res = await API.put(`/auth/user/${userId}`, updateData);
+    return res.data;
+  } catch (err) {
+    return { error: "Failed to update user profile" };
+  }
+};
+
+// UPDATE user face data
+export const updateUserFace = async (userId, faceData) => {
+  try {
+    const res = await API.put(`/auth/user/${userId}/face`, faceData);
+    return res.data;
+  } catch (err) {
+    return { error: "Failed to update user face data" };
+  }
+};

@@ -5,6 +5,8 @@ import TopBar from "../components/TopBar";
 import QuickStats from "../components/QuickStats.jsx";
 import ElectionCard from "../components/ElectionCard";
 import VoteModal from "../components/VoteModal";
+import { ethers } from "ethers";
+
 
 export default function VoterDashboard() {
   const navigate = useNavigate();
@@ -44,8 +46,16 @@ export default function VoterDashboard() {
   const [auditLog, setAuditLog] = useState([]);
 
   // 🔥 Simulate vote
-  const handleVoteSuccess = (electionId, candidateId, candidateName) => {
+  const handleVoteSuccess = async(electionId, candidateId, candidateName) => {
     setVotedElections((prev) => [...prev, electionId]);
+   
+
+    
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    const tx = await votingContract.connect(signer).vote(candidateId);
+    await tx.wait();
+
 
     setAuditLog((prev) => [
       {
