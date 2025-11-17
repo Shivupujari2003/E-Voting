@@ -1,665 +1,325 @@
-// import React, { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import TopBar from "../components/TopBar";
-// import Sidebar from "../components/Sidebar";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import TopBar from "../components/TopBar";
+import Sidebar from "../components/Sidebar";
+import { getElections, createElection, deleteElection } from "../services/api";
 
-// export default function AdminDashboard() {
-//   const navigate = useNavigate();
+export default function AdminDashboard() {
+  const navigate = useNavigate();
 
-//   // Mock Elections
-//   const [elections, setElections] = useState([
-//     {
-//       id: 1,
-//       title: "Student Council President 2025",
-//       description: "Choose the next student council president",
-//       startTime: "",
-//       endTime: "",
-//       status: "active",
-//       totalVotes: 52,
-//       candidates: [
-//         { id: 1, name: "Aarav", votes: 21 },
-//         { id: 2, name: "Riya", votes: 31 },
-//       ],
-//     },
-//     {
-//       id: 2,
-//       title: "Open Source Committee",
-//       description: "Election for open-source contributors",
-//       status: "upcoming",
-//       totalVotes: 0,
-//       candidates: [
-//         { id: 1, name: "Dev", votes: 0 },
-//         { id: 2, name: "Neha", votes: 0 },
-//       ],
-//     },
-//   ]);
+  const [activeTab, setActiveTab] = useState("create");
+  const [elections, setElections] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-//   // Mock Applications
-//   const [applications, setApplications] = useState([
-//     {
-//       id: 100,
-//       name: "Sandeep Kumar",
-//       email: "sandeep@example.com",
-//       electionId: 1,
-//       electionTitle: "Student Council President 2025",
-//       submittedAt: new Date().toISOString(),
-//       status: "pending",
-//     },
-//   ]);
+  const [newElection, setNewElection] = useState({
+    title: "",
+    description: "",
+    startTime: "",
+    endTime: "",
+    candidates: [],
+  });
 
-//   const [activeTab, setActiveTab] = useState("create");
+  const [candidateName, setCandidateName] = useState("");
 
-//   // New Election Form
-//   const [newElection, setNewElection] = useState({
-//     title: "",
-//     description: "",
-//     startTime: "",
-//     endTime: "",
-//     candidates: [],
-//   });
+  /* ------------------------------------------------------
+      AUTO REFRESH DATA EVERY 10 SECONDS
+  ------------------------------------------------------- */
+  useEffect(() => {
+    loadElections();
+    const interval = setInterval(loadElections, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-//   const [candidateName, setCandidateName] = useState("");
+  const loadElections = async () => {
+    setLoading(true);
+    const data = await getElections();
+    if (!data.error) setElections(data);
+    setLoading(false);
+  };
 
-//   const addCandidate = () => {
-//     if (!candidateName.trim()) return;
-//     setNewElection({
-//       ...newElection,
-//       candidates: [
-//         ...newElection.candidates,
-//         { id: Date.now(), name: candidateName },
-//       ],
-//     });
-//     setCandidateName("");
-//   };
+  /* ------------------------------------------------------
+      ADD CANDIDATE
+  ------------------------------------------------------- */
+  const addCandidate = () => {
+    if (!candidateName.trim()) return;
 
-//   const createElection = () => {
-//     if (
-//       !newElection.title ||
-//       !newElection.description ||
-//       newElection.candidates.length < 2
-//     ) {
-//       alert("Please fill all fields and add at least 2 candidates.");
-//       return;
-//     }
+    setNewElection({
+      ...newElection,
+      candidates: [
+        ...newElection.candidates,
+        { id: Date.now().toString(), name: candidateName, votes: 0 },
+      ],
+    });
 
-//     const createdElection = {
-//       ...newElection,
-//       id: Date.now(),
-//       status: "upcoming",
-//       totalVotes: 0,
-//     };
+    setCandidateName("");
+  };
 
-//     setElections((prev) => [...prev, createdElection]);
+  /* ------------------------------------------------------
+      CREATE ELECTION
+  ------------------------------------------------------- */
+  const handleCreateElection = async () => {
+    if (!newElection.title || newElection.candidates.length < 2) {
+      alert("Add title and at least 2 candidates.");
+      return;
+    }
 
-//     alert("Election created successfully!");
+    if (!newElection.startTime || !newElection.endTime) {
+      alert("Please select start & end time.");
+      return;
+    }
 
-//     setNewElection({
-//       title: "",
-//       description: "",
-//       startTime: "",
-//       endTime: "",
-//       candidates: [],
-//     });
-//   };
+    const res = await createElection(newElection);
 
-//   const handleApplicationAction = (id, action) => {
-//     setApplications((prev) =>
-//       prev.map((app) =>
-//         app.id === id ? { ...app, status: action } : app
-//       )
-//     );
-//   };
+    if (res.success) {
+      alert("Election created!");
+      setNewElection({
+        title: "",
+        description: "",
+        startTime: "",
+        endTime: "",
+        candidates: [],
+      });
+      loadElections();
+    } else {
+      alert(res.error || "Failed to create election");
+    }
+  };
 
-//   const handleDeleteElection = (id) => {
-//     if (!window.confirm("Delete this election?")) return;
-//     setElections(elections.filter((e) => e.id !== id));
-//   };
+  /* ------------------------------------------------------
+      DELETE ELECTION
+  ------------------------------------------------------- */
+  const handleDeleteElection = async (id) => {
+    if (!window.confirm("Delete this election?")) return;
 
-//   return (
-//     <div className="min-h-screen bg-gray-100">
-//       <TopBar title="Admin Dashboard" onLogout={() => navigate("/")} />
+    const res = await deleteElection(id);
 
-//       <div className="container mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 py-8">
-//         {/* Sidebar */}
-//         <aside className="lg:col-span-1">
-//           <Sidebar navigate={navigate} isAdmin />
+    if (res.success) loadElections();
+    else alert(res.error || "Failed to delete election");
+  };
 
-//           {/* Admin Tabs */}
-//           <div className="bg-white rounded-xl shadow p-4 mt-6">
-//             <p className="font-bold mb-3">Admin Sections</p>
+  /* ------------------------------------------------------
+      COUNTDOWN HELPER
+  ------------------------------------------------------- */
+  const getRemainingTime = (endTime) => {
+    const diff = new Date(endTime).getTime() - Date.now();
+    if (diff <= 0) return "Expired";
 
-//             {["create", "applications", "manage"].map((tab) => (
-//               <button
-//                 key={tab}
-//                 onClick={() => setActiveTab(tab)}
-//                 className={`block w-full text-left px-4 py-3 rounded-lg mb-2 transition ${
-//                   activeTab === tab
-//                     ? "bg-blue-600 text-white"
-//                     : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 {tab === "create" && "➕ Create Election"}
-//                 {tab === "applications" && "📋 Review Applications"}
-//                 {tab === "manage" && "🗳 Manage Elections"}
-//               </button>
-//             ))}
-//           </div>
-//         </aside>
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
 
-//         {/* Main Content */}
-//         <main className="lg:col-span-3">
-//           {/* CREATE ELECTION */}
-//           {activeTab === "create" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Create New Election</h2>
+    return `${hours}h ${mins}m ${secs}s`;
+  };
 
-//               <div className="space-y-4">
-//                 <input
-//                   type="text"
-//                   placeholder="Election Title"
-//                   value={newElection.title}
-//                   onChange={(e) =>
-//                     setNewElection({ ...newElection, title: e.target.value })
-//                   }
-//                   className="w-full px-4 py-2 border rounded-lg"
-//                 />
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <TopBar
+        name="Admin User"
+        walletAddress="0xAdmin123...ABCD"
+        onLogout={() => navigate("/")}
+      />
 
-//                 <textarea
-//                   placeholder="Description"
-//                   value={newElection.description}
-//                   onChange={(e) =>
-//                     setNewElection({
-//                       ...newElection,
-//                       description: e.target.value,
-//                     })
-//                   }
-//                   className="w-full px-4 py-2 border rounded-lg"
-//                   rows={3}
-//                 />
+      <div className="container mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 py-8">
+        
+        {/* ---------------------- SIDEBAR ---------------------- */}
+        <aside className="lg:col-span-1">
+          <Sidebar navigate={navigate} isAdmin />
 
-//                 <div className="grid grid-cols-2 gap-4">
-//                   <input
-//                     type="datetime-local"
-//                     value={newElection.startTime}
-//                     onChange={(e) =>
-//                       setNewElection({
-//                         ...newElection,
-//                         startTime: e.target.value,
-//                       })
-//                     }
-//                     className="px-4 py-2 border rounded-lg"
-//                   />
-//                   <input
-//                     type="datetime-local"
-//                     value={newElection.endTime}
-//                     onChange={(e) =>
-//                       setNewElection({
-//                         ...newElection,
-//                         endTime: e.target.value,
-//                       })
-//                     }
-//                     className="px-4 py-2 border rounded-lg"
-//                   />
-//                 </div>
+          <div className="bg-white rounded-xl shadow p-4 mt-6">
+            <p className="font-bold mb-3">Admin Sections</p>
 
-//                 {/* Candidates */}
-//                 <div>
-//                   <label className="font-medium">Candidates</label>
-//                   <div className="flex gap-2 mt-2">
-//                     <input
-//                       type="text"
-//                       placeholder="Candidate Name"
-//                       value={candidateName}
-//                       onChange={(e) => setCandidateName(e.target.value)}
-//                       className="flex-1 px-4 py-2 border rounded-lg"
-//                     />
-//                     <button
-//                       onClick={addCandidate}
-//                       className="bg-green-600 text-white px-6 rounded-lg"
-//                     >
-//                       Add
-//                     </button>
-//                   </div>
+            {["create", "manage"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`block w-full text-left px-4 py-3 rounded-lg mb-2 transition ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                {tab === "create" && "➕ Create Election"}
+                {tab === "manage" && "🗳 Manage Elections"}
+              </button>
+            ))}
+          </div>
+        </aside>
 
-//                   {newElection.candidates.length > 0 && (
-//                     <ul className="mt-4 space-y-2">
-//                       {newElection.candidates.map((c) => (
-//                         <li
-//                           key={c.id}
-//                           className="bg-gray-100 p-3 rounded-lg flex justify-between"
-//                         >
-//                           {c.name}
-//                           <button
-//                             className="text-red-500"
-//                             onClick={() =>
-//                               setNewElection({
-//                                 ...newElection,
-//                                 candidates: newElection.candidates.filter(
-//                                   (x) => x.id !== c.id
-//                                 ),
-//                               })
-//                             }
-//                           >
-//                             ✕
-//                           </button>
-//                         </li>
-//                       ))}
-//                     </ul>
-//                   )}
-//                 </div>
 
-//                 <button
-//                   onClick={createElection}
-//                   className="w-full bg-blue-600 text-white py-3 rounded-lg"
-//                 >
-//                   Create Election
-//                 </button>
-//               </div>
-//             </div>
-//           )}
+        {/* ---------------------- MAIN CONTENT ---------------------- */}
+        <main className="lg:col-span-3">
 
-//           {/* REVIEW APPLICATIONS */}
-//           {activeTab === "applications" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Candidate Applications</h2>
+          {/* -------------------------------- CREATE ELECTION -------------------------------- */}
+          {activeTab === "create" && (
+            <div className="bg-white rounded-xl shadow p-8">
+              <h2 className="text-2xl font-bold mb-6">Create New Election</h2>
 
-//               {applications.length === 0 ? (
-//                 <p className="text-gray-500">No applications yet.</p>
-//               ) : (
-//                 applications.map((app) => (
-//                   <div
-//                     key={app.id}
-//                     className="border p-4 rounded-lg mb-4 flex justify-between"
-//                   >
-//                     <div>
-//                       <p className="font-semibold">{app.name}</p>
-//                       <p className="text-sm text-gray-500">{app.email}</p>
-//                       <p className="text-sm">
-//                         Election: {app.electionTitle}
-//                       </p>
-//                     </div>
+              <div className="space-y-4">
 
-//                     <div className="flex gap-2">
-//                       {app.status === "pending" && (
-//                         <>
-//                           <button
-//                             onClick={() =>
-//                               handleApplicationAction(app.id, "approved")
-//                             }
-//                             className="bg-green-600 text-white px-4 py-2 rounded-lg"
-//                           >
-//                             Approve
-//                           </button>
-//                           <button
-//                             onClick={() =>
-//                               handleApplicationAction(app.id, "rejected")
-//                             }
-//                             className="bg-red-600 text-white px-4 py-2 rounded-lg"
-//                           >
-//                             Reject
-//                           </button>
-//                         </>
-//                       )}
+                {/* TITLE */}
+                <input
+                  type="text"
+                  placeholder="Election Title"
+                  value={newElection.title}
+                  onChange={(e) =>
+                    setNewElection({ ...newElection, title: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
 
-//                       {app.status !== "pending" && (
-//                         <span
-//                           className={`px-4 py-2 rounded-lg font-semibold ${
-//                             app.status === "approved"
-//                               ? "text-green-700 bg-green-100"
-//                               : "text-red-700 bg-red-100"
-//                           }`}
-//                         >
-//                           {app.status}
-//                         </span>
-//                       )}
-//                     </div>
-//                   </div>
-//                 ))
-//               )}
-//             </div>
-//           )}
+                {/* DESCRIPTION */}
+                <textarea
+                  placeholder="Description"
+                  value={newElection.description}
+                  onChange={(e) =>
+                    setNewElection({
+                      ...newElection,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 border rounded-lg"
+                  rows={3}
+                />
 
-//           {/* MANAGE ELECTIONS */}
-//           {activeTab === "manage" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Elections</h2>
+                {/* TIME */}
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="datetime-local"
+                    value={newElection.startTime}
+                    onChange={(e) =>
+                      setNewElection({ ...newElection, startTime: e.target.value })
+                    }
+                    className="px-4 py-2 border rounded-lg"
+                  />
 
-//               <table className="w-full">
-//                 <thead>
-//                   <tr className="bg-gray-200">
-//                     <th className="px-4 py-3 text-left">Title</th>
-//                     <th className="px-4 py-3 text-left">Status</th>
-//                     <th className="px-4 py-3 text-left">Votes</th>
-//                     <th className="px-4 py-3 text-left">Actions</th>
-//                   </tr>
-//                 </thead>
+                  <input
+                    type="datetime-local"
+                    value={newElection.endTime}
+                    onChange={(e) =>
+                      setNewElection({ ...newElection, endTime: e.target.value })
+                    }
+                    className="px-4 py-2 border rounded-lg"
+                  />
+                </div>
 
-//                 <tbody>
-//                   {elections.map((e) => (
-//                     <tr key={e.id} className="border-b">
-//                       <td className="px-4 py-3">{e.title}</td>
-//                       <td className="px-4 py-3 capitalize">{e.status}</td>
-//                       <td className="px-4 py-3">{e.totalVotes}</td>
-//                       <td className="px-4 py-3 flex gap-3">
-//                         <button
-//                           className="text-blue-600"
-//                           onClick={() =>
-//                             navigate(`/results?election=${e.id}`)
-//                           }
-//                         >
-//                           View Results
-//                         </button>
+                {/* CANDIDATES */}
+                <div>
+                  <label className="font-medium">Candidates</label>
 
-//                         <button
-//                           className="text-red-600"
-//                           onClick={() => handleDeleteElection(e.id)}
-//                         >
-//                           Delete
-//                         </button>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={candidateName}
+                      onChange={(e) => setCandidateName(e.target.value)}
+                      placeholder="Candidate Name"
+                      className="flex-1 px-4 py-2 border rounded-lg"
+                    />
+                    <button
+                      onClick={addCandidate}
+                      className="bg-green-600 text-white px-5 rounded-lg"
+                    >
+                      Add
+                    </button>
+                  </div>
 
-//                         {e.status === "active" && (
-//                           <button
-//                             className="text-green-600"
-//                             onClick={() =>
-//                               alert("Finalize action coming soon")
-//                             }
-//                           >
-//                             Finalize
-//                           </button>
-//                         )}
-//                       </td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             </div>
-//           )}
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
-// import React, { useState, useEffect } from "react";
-// import { useNavigate } from "react-router-dom";
-// import TopBar from "../components/TopBar";
-// import Sidebar from "../components/Sidebar";
+                  {newElection.candidates.map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-gray-100 p-3 rounded-lg flex justify-between mt-2"
+                    >
+                      {c.name}
+                      <button
+                        className="text-red-500"
+                        onClick={() =>
+                          setNewElection({
+                            ...newElection,
+                            candidates: newElection.candidates.filter(
+                              (x) => x.id !== c.id
+                            ),
+                          })
+                        }
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
 
-// // Services
-// import {
-//   fetchElections,
-//   createElection as createElectionService,
-//   deleteElection as deleteElectionService,
-//   fetchApplications,
-//   handleApplication as handleApplicationService,
-// } from "../services/api.js";
+                {/* SUBMIT */}
+                <button
+                  onClick={handleCreateElection}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg"
+                >
+                  Create Election
+                </button>
+              </div>
+            </div>
+          )}
 
-// export default function AdminDashboard() {
-//   const navigate = useNavigate();
+          {/* -------------------------------- MANAGE ELECTIONS -------------------------------- */}
+          {activeTab === "manage" && (
+            <div className="bg-white rounded-xl shadow p-8">
+              <h2 className="text-2xl font-bold mb-6">Manage Elections</h2>
 
-//   const [elections, setElections] = useState([]);
-//   const [applications, setApplications] = useState([]);
-//   const [activeTab, setActiveTab] = useState("create");
+              {loading ? (
+                <p>Loading...</p>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="px-4 py-3 text-left">Title</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Votes</th>
+                      <th className="px-4 py-3">Actions</th>
+                    </tr>
+                  </thead>
 
-//   const [newElection, setNewElection] = useState({
-//     title: "",
-//     description: "",
-//     startTime: "",
-//     endTime: "",
-//     candidates: [],
-//   });
+                  <tbody>
+                    {elections.map((e) => (
+                      <tr key={e._id} className="border-b">
+                        <td className="px-4 py-3">{e.title}</td>
 
-//   const [candidateName, setCandidateName] = useState("");
+                        <td className="px-4 py-3 capitalize">
+                          {e.status === "active" ? (
+                            <span className="text-green-600 font-semibold">
+                              Active • {getRemainingTime(e.endTime)}
+                            </span>
+                          ) : (
+                            <span className="text-red-600 font-semibold">
+                              Completed
+                            </span>
+                          )}
+                        </td>
 
-//   // Fetch elections and applications on mount
-//   useEffect(() => {
-//     loadElections();
-//     loadApplications();
-//   }, []);
+                        <td className="px-4 py-3">{e.totalVotes}</td>
 
-//   const loadElections = async () => {
-//     const data = await fetchElections();
-//     setElections(data || []);
-//   };
+                        <td className="px-4 py-3 flex gap-3">
+                          <button
+                            className="text-blue-600"
+                            onClick={() =>
+                              navigate(`/results?election=${e._id}`)
+                            }
+                          >
+                            View Results
+                          </button>
 
-//   const loadApplications = async () => {
-//     const data = await fetchApplications();
-//     setApplications(data || []);
-//   };
+                          <button
+                            className="text-red-600"
+                            onClick={() => handleDeleteElection(e._id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
-//   const addCandidate = () => {
-//     if (!candidateName.trim()) return;
-//     setNewElection({
-//       ...newElection,
-//       candidates: [
-//         ...newElection.candidates,
-//         { id: Date.now(), name: candidateName },
-//       ],
-//     });
-//     setCandidateName("");
-//   };
-
-//   const createElection = async () => {
-//     if (!newElection.title || !newElection.description || newElection.candidates.length < 2) {
-//       alert("Please fill all fields and add at least 2 candidates.");
-//       return;
-//     }
-
-//     const res = await createElectionService(newElection);
-//     if (res.success) {
-//       alert("Election created successfully!");
-//       setNewElection({ title: "", description: "", startTime: "", endTime: "", candidates: [] });
-//       loadElections();
-//     } else {
-//       alert(res.message || "Failed to create election.");
-//     }
-//   };
-
-//   const handleApplicationAction = async (id, action) => {
-//     const res = await handleApplicationService(id, action);
-//     if (res.success) {
-//       loadApplications();
-//     } else {
-//       alert(res.message || "Failed to update application.");
-//     }
-//   };
-
-//   const handleDeleteElection = async (id) => {
-//     if (!window.confirm("Delete this election?")) return;
-//     const res = await deleteElectionService(id);
-//     if (res.success) loadElections();
-//     else alert(res.message || "Failed to delete election.");
-//   };
-
-//   return (
-//     <div className="min-h-screen bg-gray-100">
-//       <TopBar title="Admin Dashboard" onLogout={() => navigate("/")} />
-
-//       <div className="container mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 px-4 py-8">
-//         <aside className="lg:col-span-1">
-//           <Sidebar navigate={navigate} isAdmin />
-//           <div className="bg-white rounded-xl shadow p-4 mt-6">
-//             <p className="font-bold mb-3">Admin Sections</p>
-//             {["create", "applications", "manage"].map((tab) => (
-//               <button
-//                 key={tab}
-//                 onClick={() => setActiveTab(tab)}
-//                 className={`block w-full text-left px-4 py-3 rounded-lg mb-2 transition ${
-//                   activeTab === tab ? "bg-blue-600 text-white" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 {tab === "create" && "➕ Create Election"}
-//                 {tab === "applications" && "📋 Review Applications"}
-//                 {tab === "manage" && "🗳 Manage Elections"}
-//               </button>
-//             ))}
-//           </div>
-//         </aside>
-
-//         <main className="lg:col-span-3">
-//           {/* CREATE ELECTION */}
-//           {activeTab === "create" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Create New Election</h2>
-
-//               <div className="space-y-4">
-//                 <input
-//                   type="text"
-//                   placeholder="Election Title"
-//                   value={newElection.title}
-//                   onChange={(e) => setNewElection({ ...newElection, title: e.target.value })}
-//                   className="w-full px-4 py-2 border rounded-lg"
-//                 />
-//                 <textarea
-//                   placeholder="Description"
-//                   value={newElection.description}
-//                   onChange={(e) => setNewElection({ ...newElection, description: e.target.value })}
-//                   className="w-full px-4 py-2 border rounded-lg"
-//                   rows={3}
-//                 />
-//                 <div className="grid grid-cols-2 gap-4">
-//                   <input
-//                     type="datetime-local"
-//                     value={newElection.startTime}
-//                     onChange={(e) => setNewElection({ ...newElection, startTime: e.target.value })}
-//                     className="px-4 py-2 border rounded-lg"
-//                   />
-//                   <input
-//                     type="datetime-local"
-//                     value={newElection.endTime}
-//                     onChange={(e) => setNewElection({ ...newElection, endTime: e.target.value })}
-//                     className="px-4 py-2 border rounded-lg"
-//                   />
-//                 </div>
-
-//                 <div>
-//                   <label className="font-medium">Candidates</label>
-//                   <div className="flex gap-2 mt-2">
-//                     <input
-//                       type="text"
-//                       placeholder="Candidate Name"
-//                       value={candidateName}
-//                       onChange={(e) => setCandidateName(e.target.value)}
-//                       className="flex-1 px-4 py-2 border rounded-lg"
-//                     />
-//                     <button onClick={addCandidate} className="bg-green-600 text-white px-6 rounded-lg">
-//                       Add
-//                     </button>
-//                   </div>
-//                   {newElection.candidates.length > 0 && (
-//                     <ul className="mt-4 space-y-2">
-//                       {newElection.candidates.map((c) => (
-//                         <li key={c.id} className="bg-gray-100 p-3 rounded-lg flex justify-between">
-//                           {c.name}
-//                           <button
-//                             className="text-red-500"
-//                             onClick={() =>
-//                               setNewElection({
-//                                 ...newElection,
-//                                 candidates: newElection.candidates.filter((x) => x.id !== c.id),
-//                               })
-//                             }
-//                           >
-//                             ✕
-//                           </button>
-//                         </li>
-//                       ))}
-//                     </ul>
-//                   )}
-//                 </div>
-
-//                 <button onClick={createElection} className="w-full bg-blue-600 text-white py-3 rounded-lg">
-//                   Create Election
-//                 </button>
-//               </div>
-//             </div>
-//           )}
-
-//           {/* REVIEW APPLICATIONS */}
-//           {activeTab === "applications" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Candidate Applications</h2>
-//               {applications.length === 0 ? (
-//                 <p className="text-gray-500">No applications yet.</p>
-//               ) : (
-//                 applications.map((app) => (
-//                   <div key={app.id} className="border p-4 rounded-lg mb-4 flex justify-between">
-//                     <div>
-//                       <p className="font-semibold">{app.name}</p>
-//                       <p className="text-sm text-gray-500">{app.email}</p>
-//                       <p className="text-sm">Election: {app.electionTitle}</p>
-//                     </div>
-//                     <div className="flex gap-2">
-//                       {app.status === "pending" ? (
-//                         <>
-//                           <button
-//                             onClick={() => handleApplicationAction(app.id, "approved")}
-//                             className="bg-green-600 text-white px-4 py-2 rounded-lg"
-//                           >
-//                             Approve
-//                           </button>
-//                           <button
-//                             onClick={() => handleApplicationAction(app.id, "rejected")}
-//                             className="bg-red-600 text-white px-4 py-2 rounded-lg"
-//                           >
-//                             Reject
-//                           </button>
-//                         </>
-//                       ) : (
-//                         <span
-//                           className={`px-4 py-2 rounded-lg font-semibold ${
-//                             app.status === "approved" ? "text-green-700 bg-green-100" : "text-red-700 bg-red-100"
-//                           }`}
-//                         >
-//                           {app.status}
-//                         </span>
-//                       )}
-//                     </div>
-//                   </div>
-//                 ))
-//               )}
-//             </div>
-//           )}
-
-//           {/* MANAGE ELECTIONS */}
-//           {activeTab === "manage" && (
-//             <div className="bg-white rounded-xl shadow p-8">
-//               <h2 className="text-2xl font-bold mb-6">Elections</h2>
-//               <table className="w-full">
-//                 <thead>
-//                   <tr className="bg-gray-200">
-//                     <th className="px-4 py-3 text-left">Title</th>
-//                     <th className="px-4 py-3 text-left">Status</th>
-//                     <th className="px-4 py-3 text-left">Votes</th>
-//                     <th className="px-4 py-3 text-left">Actions</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {elections.map((e) => (
-//                     <tr key={e.id} className="border-b">
-//                       <td className="px-4 py-3">{e.title}</td>
-//                       <td className="px-4 py-3 capitalize">{e.status}</td>
-//                       <td className="px-4 py-3">{e.totalVotes}</td>
-//                       <td className="px-4 py-3 flex gap-3">
-//                         <button className="text-blue-600" onClick={() => navigate(`/results?election=${e.id}`)}>
-//                           View Results
-//                         </button>
-//                         <button className="text-red-600" onClick={() => handleDeleteElection(e.id)}>
-//                           Delete
-//                         </button>
-//                         {e.status === "active" && (
-//                           <button className="text-green-600" onClick={() => alert("Finalize action coming soon")}>
-//                             Finalize
-//                           </button>
-//                         )}
-//                       </td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             </div>
-//           )}
-//         </main>
-//       </div>
-//     </div>
-//   );
-// }
+        </main>
+      </div>
+    </div>
+  );
+}

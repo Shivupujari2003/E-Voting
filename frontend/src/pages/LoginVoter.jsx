@@ -8,40 +8,33 @@ export default function VoterLogin() {
   const navigate = useNavigate();
 
   const videoRef = useRef(null);
-  const verifyInterval = useRef(null); // Stores interval safely
+  const verifyInterval = useRef(null);
 
   const [step, setStep] = useState(1);
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [wallet, setWallet] = useState("");
 
-  // ======================================================
-  // SAFE CAMERA STOP
-  // ======================================================
+  /* ----------------------------------------------------
+     STOP CAMERA
+  ---------------------------------------------------- */
   const stopCamera = () => {
     try {
-      console.log("STOP CAMERA CALLED");
-
-      if (!videoRef.current) {
-        console.log("videoRef.current is NULL, cannot stop camera");
-        return;
-      }
+      if (!videoRef.current) return;
 
       const stream = videoRef.current.srcObject;
       if (stream) {
-        console.log("Stopping video tracks...");
         stream.getTracks().forEach((track) => track.stop());
       }
 
       videoRef.current.srcObject = null;
-      console.log("Camera successfully stopped");
     } catch (err) {
       console.warn("Camera stop error:", err);
     }
   };
 
-  // ======================================================
-  // STEP 1 — LOGIN CHECK
-  // ======================================================
+  /* ----------------------------------------------------
+     LOGIN → MOVE TO STEP 2
+  ---------------------------------------------------- */
   const handleLogin = async () => {
     if (!credentials.email || !credentials.password) {
       alert("Enter email + password");
@@ -58,49 +51,44 @@ export default function VoterLogin() {
       return;
     }
 
-    console.log("Credentials OK → Starting camera and going to STEP 2");
+    // ⭐ Save basic user info temporarily for later storage
+    localStorage.setItem(
+      "tempUser",
+      JSON.stringify({
+        email: credentials.email,
+        voterId: res.voterId,
+        walletAddress: res.wallet, // may be empty if not stored yet
+      })
+    );
 
     startCamera();
     setStep(2);
   };
 
-  // ======================================================
-  // START CAMERA
-  // ======================================================
+  /* ----------------------------------------------------
+     START CAMERA
+  ---------------------------------------------------- */
   const startCamera = async () => {
     try {
-      console.log("Starting camera...");
-
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
-        console.log("Camera started successfully");
-      } else {
-        console.log("videoRef is null, camera cannot start");
       }
     } catch (err) {
       console.error("Camera Error:", err);
     }
   };
 
-  // ======================================================
-  // FACE VERIFICATION LOOP
-  // ======================================================
+  /* ----------------------------------------------------
+     CONTINUOUS FACE VERIFICATION
+  ---------------------------------------------------- */
   const startContinuousVerification = () => {
-    if (verifyInterval.current !== null) {
-      console.log("Interval already running — NOT starting another");
-      return;
-    }
-
-    console.log("Starting face verification loop...");
+    if (verifyInterval.current !== null) return;
 
     verifyInterval.current = setInterval(async () => {
-      if (!videoRef.current) {
-        console.log("videoRef missing, skipping frame...");
-        return;
-      }
+      if (!videoRef.current) return;
 
       const canvas = document.createElement("canvas");
       canvas.width = 400;
@@ -111,55 +99,36 @@ export default function VoterLogin() {
 
       const capturedImage = canvas.toDataURL("image/jpeg");
 
-      console.log("Sending frame to backend for face verification...");
-
       const res = await verifyFace({
         voterId: credentials.email,
         image: capturedImage,
       });
 
       if (res.success && res.confidence === 100) {
-        console.log(
-          "FACE CONFIRMED — STOPPING INTERVAL & CAMERA",
-          res.confidence
-        );
-
         clearInterval(verifyInterval.current);
         verifyInterval.current = null;
 
         stopCamera();
-
         alert("Face Verified!");
         setStep(3);
       }
-    }, 5000);
+    }, 4000); // Every 4 seconds
   };
 
   useEffect(() => {
-    if (step === 2) {
-      startContinuousVerification();
-    }
+    if (step === 2) startContinuousVerification();
   }, [step]);
 
-  // ======================================================
-  // CLEANUP (component unmount)
-  // ======================================================
   useEffect(() => {
     return () => {
-      console.log("COMPONENT UNMOUNT — Cleaning up interval & camera");
-
-      if (verifyInterval.current) {
-        console.log("Clearing interval from cleanup...");
-        clearInterval(verifyInterval.current);
-      }
-
+      if (verifyInterval.current) clearInterval(verifyInterval.current);
       stopCamera();
     };
   }, []);
 
-  // ======================================================
-  // METAMASK LOGIN (STEP 3)
-  // ======================================================
+  /* ----------------------------------------------------
+     CONNECT METAMASK & COMPLETE LOGIN
+  ---------------------------------------------------- */
   const connectWallet = async () => {
     if (!window.ethereum) {
       alert("MetaMask not detected!");
@@ -173,12 +142,28 @@ export default function VoterLogin() {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      console.log("MetaMask Wallet Connected:", address);
-
       setWallet(address);
       alert("Wallet Connected!");
 
-      stopCamera(); // ensure camera is always off
+      // Get stored user
+      const tempUser = JSON.parse(localStorage.getItem("tempUser"));
+
+      // ⭐ Save final user info for Dashboard + TopBar
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          name: tempUser?.email.split("@")[0], // You can replace with backend name later
+          email: tempUser?.email,
+          voterId: tempUser?.voterId,
+          walletAddress: address,
+        })
+      );
+
+      // Remove temp
+      localStorage.removeItem("tempUser");
+
+      stopCamera();
+
       navigate("/voter/dashboard");
     } catch (error) {
       console.error(error);
@@ -186,9 +171,9 @@ export default function VoterLogin() {
     }
   };
 
-  // ======================================================
-  // UI
-  // ======================================================
+  /* ----------------------------------------------------
+     UI RENDER
+  ---------------------------------------------------- */
   return (
     <div className="min-h-screen bg-gray-100">
       <Navbar />
@@ -206,7 +191,7 @@ export default function VoterLogin() {
               <div className="flex-1" key={index}>
                 <div
                   className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-white 
-                    ${step === n ? "bg-blue-600" : step > n ? "bg-green-600" : "bg-gray-400"}`}
+                  ${step === n ? "bg-blue-600" : step > n ? "bg-green-600" : "bg-gray-400"}`}
                 >
                   {step > n ? "✓" : n}
                 </div>
@@ -216,7 +201,7 @@ export default function VoterLogin() {
           })}
         </div>
 
-        {/* STEP 1 — CREDENTIALS */}
+        {/* STEP 1 — LOGIN */}
         {step === 1 && (
           <div className="space-y-4">
             <input

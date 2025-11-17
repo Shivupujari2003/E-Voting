@@ -1,19 +1,20 @@
 import mongoose from "mongoose";
-const electionSchema = new mongoose.Schema({
+
+const CandidateSchema = new mongoose.Schema({
+  id: String,
+  name: String,
+  votes: { type: Number, default: 0 },
+});
+
+const ElectionSchema = new mongoose.Schema({
   title: String,
   description: String,
-  startTime: Date,
-  endTime: Date,
-  status: {
-    type: String,
-    enum: ["draft", "active", "closed"],
-    default: "draft",
-  },
-  candidates: [
-    { id: String, name: String, address: String, votes: { type: Number, default: 0 } },
-  ],
-  totalVotes: { type: Number, default: 0 },
-  createdBy: String,
-  createdAt: { type: Date, default: Date.now },
+  startTime: String,
+  endTime: String,
+  status: { type: String, default: "active" }, // active | completed
+  candidates: [CandidateSchema],
+
+  totalVotes: { type: Number, default: 0 }
 });
-export default mongoose.model("Election", electionSchema);
+
+export default mongoose.model("Election", ElectionSchema);
