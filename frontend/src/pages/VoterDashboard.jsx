@@ -1,61 +1,86 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import QuickStats from "../components/QuickStats.jsx";
 import ElectionCard from "../components/ElectionCard";
 import VoteModal from "../components/VoteModal";
-import { ethers } from "ethers";
 
+import { ethers } from "ethers";
+import Voting from "../contracts/Voting.json"; // ABI
+import { getElections } from "../services/api"; // Backend elections API
 
 export default function VoterDashboard() {
   const navigate = useNavigate();
 
-  // Load user from localStorage (THIS IS SAFE, not a hook)
+  // Logged-in user details
   const storedUser = JSON.parse(localStorage.getItem("user")) || {
     name: "User",
     walletAddress: "0x000000000000",
   };
 
-  // All hooks must remain in SAME ORDER
-  const [elections] = useState([
-    {
-      id: "el1",
-      title: "College President Election",
-      description: "Vote for the next student body president.",
-      candidates: [
-        { id: "c1", name: "Alice", votes: 12 },
-        { id: "c2", name: "Bob", votes: 9 },
-      ],
-      status: "active",
-    },
-    {
-      id: "el2",
-      title: "Tech Club Leader",
-      description: "Choose the next tech club head.",
-      candidates: [
-        { id: "c3", name: "Charlie", votes: 20 },
-        { id: "c4", name: "Diana", votes: 17 },
-      ],
-      status: "completed",
-    },
-  ]);
-
+  const [elections, setElections] = useState([]);
   const [selectedElection, setSelectedElection] = useState(null);
   const [votedElections, setVotedElections] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
 
-  // 🔥 Simulate vote
-  const handleVoteSuccess = async(electionId, candidateId, candidateName) => {
+  // ============================================================
+  // 🔥 Fetch Elections From Backend (backend gives RAW ARRAY)
+  // ============================================================
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await getElections();
+      console.log("Backend response:", response);
+
+      if (response.error) {
+        console.error("Error fetching elections:", response.error);
+      } else {
+        // Backend returns `[ {...}, {...} ]`
+        setElections(response || []);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // ============================================================
+  // 🔥 Blockchain Vote Function (works with Vite env)
+  // ============================================================
+  const voteOnBlockchain = async (candidateId) => {
+    try {
+      if (!window.ethereum) {
+        alert("MetaMask not installed!");
+        return null;
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      // ⭐ FIX: Vite env variable
+      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+
+      const contract = new ethers.Contract(contractAddress, Voting.abi, signer);
+
+      const tx = await contract.vote(candidateId);
+      const receipt = await tx.wait();
+
+      return receipt;
+    } catch (err) {
+      console.error("Blockchain vote error:", err);
+      alert("⚠ Voting failed. Check console.");
+      return null;
+    }
+  };
+
+  // ============================================================
+  // 🔥 Handle Vote Completion
+  // ============================================================
+  const handleVoteSuccess = async (electionId, candidateId, candidateName) => {
+    const receipt = await voteOnBlockchain(candidateId);
+    if (!receipt) return;
+
     setVotedElections((prev) => [...prev, electionId]);
-   
-
-    
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const tx = await votingContract.connect(signer).vote(candidateId);
-    await tx.wait();
-
 
     setAuditLog((prev) => [
       {
@@ -65,7 +90,7 @@ export default function VoterDashboard() {
         electionId,
         candidateId,
         candidateName,
-        txHash: "0xSTATIC_FAKE_HASH",
+        txHash: receipt.hash,
       },
       ...prev,
     ]);
@@ -73,16 +98,22 @@ export default function VoterDashboard() {
     alert(`You voted for ${candidateName}!`);
   };
 
+  // ============================================================
+  // 🔥 Filter elections (use _id)
+  // ============================================================
   const activeElections = elections.filter(
-    (e) => e.status === "active" && !votedElections.includes(e.id)
+    (e) => e.status === "active" && !votedElections.includes(e._id)
   );
 
   const pastElections = elections.filter((e) => e.status !== "active");
 
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
 
-      {/* FIX: Pass name + wallet */}
+      {/* Header */}
       <TopBar
         name={storedUser.name}
         walletAddress={storedUser.walletAddress}
@@ -90,13 +121,17 @@ export default function VoterDashboard() {
       />
 
       <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        {/* Sidebar */}
         <aside className="lg:col-span-1">
           <Sidebar navigate={navigate} />
           <QuickStats voted={votedElections.length} auditCount={auditLog.length} />
         </aside>
 
+        {/* Main Content */}
         <main className="lg:col-span-3">
 
+          {/* Active Elections */}
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-4">🔴 Active Elections</h2>
 
@@ -107,7 +142,7 @@ export default function VoterDashboard() {
             ) : (
               activeElections.map((el) => (
                 <ElectionCard
-                  key={el.id}
+                  key={el._id}
                   election={el}
                   onVote={() => setSelectedElection(el)}
                 />
@@ -115,15 +150,16 @@ export default function VoterDashboard() {
             )}
           </section>
 
+          {/* Past Elections */}
           <section>
             <h2 className="text-2xl font-bold mb-4">📂 Past Elections</h2>
 
             {pastElections.map((el) => (
               <ElectionCard
-                key={el.id}
+                key={el._id}
                 election={el}
                 isPast
-                onVote={() => navigate(`/results?election=${el.id}`)}
+                onVote={() => navigate(`/results?election=${el._id}`)}
               />
             ))}
           </section>
@@ -131,6 +167,7 @@ export default function VoterDashboard() {
         </main>
       </div>
 
+      {/* Vote Modal */}
       {selectedElection && (
         <VoteModal
           election={selectedElection}

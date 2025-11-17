@@ -1,5 +1,5 @@
 import Election from "../models/Election.js";
-import { votingContract } from "../utils/blockchain.js";  // adjust path as needed
+import { votingContract } from "../blockchain.js";  // adjust path as needed
 import User from "../models/User.js";
 export const createElection = async (req, res) => {
   console.log("📩 CREATE ELECTION BODY:", req.body);

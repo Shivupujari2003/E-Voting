@@ -1,5 +1,11 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { ethers } from "ethers";
-import Voting from "./contracts/Voting.json" assert { type: "json" };
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const Voting = require("./contracts/Voting.json");
 
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);

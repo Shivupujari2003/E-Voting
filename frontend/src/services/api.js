@@ -110,21 +110,21 @@ export const fetchUserProfile = async (userId) => {
 };
 
 // UPDATE user profile
-export const updateUserProfile = async (userId, updateData) => {
-  try {
-    const res = await API.put(`/auth/user/${userId}`, updateData);
-    return res.data;
-  } catch (err) {
-    return { error: "Failed to update user profile" };
-  }
-};
+// export const updateUserProfile = async (userId, updateData) => {
+//   try {
+//     const res = await API.put(`/auth/user/${userId}`, updateData);
+//     return res.data;
+//   } catch (err) {
+//     return { error: "Failed to update user profile" };
+//   }
+// };
 
-// UPDATE user face data
-export const updateUserFace = async (userId, faceData) => {
-  try {
-    const res = await API.put(`/auth/user/${userId}/face`, faceData);
-    return res.data;
-  } catch (err) {
-    return { error: "Failed to update user face data" };
-  }
-};
+// // UPDATE user face data
+// export const updateUserFace = async (userId, faceData) => {
+//   try {
+//     const res = await API.put(`/auth/user/${userId}/face`, faceData);
+//     return res.data;
+//   } catch (err) {
+//     return { error: "Failed to update user face data" };
+//   }
+// };

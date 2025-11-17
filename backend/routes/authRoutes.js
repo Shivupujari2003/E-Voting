@@ -15,8 +15,8 @@ import {
 } from "../controllers/electionController.js";
 
 import {
-  updateUserProfile,
-  updateUserFace,
+  // updateUserProfile,
+  // updateUserFace,
   fetchUserProfile
 } from "../controllers/profileController.js";
 
@@ -29,15 +29,15 @@ router.post("/verify-face", verifyFace);
 router.post("/check-wallet", checkWalletExists);
 
 /* ELECTION (MATCHING FRONTEND) */
-router.post("/election", createElection);              // CREATE
-router.get("/election", getElections);                 // GET ALL
+router.post("/election/create", createElection);              // CREATE
+router.get("/election/all", getElections);                 // GET ALL
 router.delete("/election/:id", deleteElection);        // DELETE
 router.post("/election/vote", castVote);               // VOTE
 router.get("/election/:id/results", fetchElectionResults); // RESULTS
 
 /* PROFILE */
 router.get("/user/:userId", fetchUserProfile);
-router.put("/user/:userId", updateUserProfile);
-router.put("/user/:userId/face", updateUserFace);
+// router.put("/user/:userId", updateUserProfile);
+// router.put("/user/:userId/face", updateUserFace);
 
 export default router;

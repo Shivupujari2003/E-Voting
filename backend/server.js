@@ -1,19 +1,16 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import { connectDB } from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
 import path from "path";
 import fs from "fs";
 
+import { connectDB } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import { votingContract } from "./blockchain.js";  // <-- correct import
+
 const app = express();
-
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-const contract = new ethers.Contract(
-    process.env.CONTRACT_ADDRESS,
-    Voting.abi,
-    provider
-);
-
 
 // --- Ensure folders exist ---
 ["dataset", "encodings", "temp"].forEach((folder) => {
@@ -25,7 +22,7 @@ const contract = new ethers.Contract(
 
 // Middlewares
 app.use(cors());
-app.use(express.json({ limit: "50mb" })); // Base64 support
+app.use(express.json({ limit: "50mb" })); 
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Connect DB
@@ -34,14 +31,12 @@ connectDB();
 // Routes
 app.use("/api/auth", authRoutes);
 
-// Static routes (optional, for debugging)
+// Static routes (optional)
 app.use("/encodings", express.static("encodings"));
 app.use("/dataset", express.static("dataset"));
 
 const PORT = 5000;
-// console.log("Loaded routes:", authRoutes);
 
 app.listen(PORT, () =>
   console.log(`🚀 Backend running on http://localhost:${PORT}`)
-  
 );

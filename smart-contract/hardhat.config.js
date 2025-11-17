@@ -7,7 +7,7 @@ module.exports = {
       url: "http://127.0.0.1:7545", // Ganache RPC
       // chainId: 1337,                // ✅ Match Ganache's chain ID
       accounts: [
-        "0xe8757ec4f0f2b1ebffbcecad52c69fee4ceddb672b91f3616393e4e64681fa53"
+        "0xffb4ac5fd1be542f3857fd05b2f703df63ed9dbd32a18b4f4dd5a1820c98b015"
       ]
     }
   }
