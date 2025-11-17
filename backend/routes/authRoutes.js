@@ -11,8 +11,14 @@ import {
   getElections,
   deleteElection,
   castVote,
-  getElectionResults
+  fetchElectionResults
 } from "../controllers/electionController.js";
+
+import {
+  updateUserProfile,
+  updateUserFace,
+  fetchUserProfile
+} from "../controllers/profileController.js";
 
 const router = express.Router();
 
@@ -27,6 +33,11 @@ router.post("/election", createElection);              // CREATE
 router.get("/election", getElections);                 // GET ALL
 router.delete("/election/:id", deleteElection);        // DELETE
 router.post("/election/vote", castVote);               // VOTE
-router.get("/election/:id/results", getElectionResults); // RESULTS
+router.get("/election/:id/results", fetchElectionResults); // RESULTS
+
+/* PROFILE */
+router.get("/user/:userId", fetchUserProfile);
+router.put("/user/:userId", updateUserProfile);
+router.put("/user/:userId/face", updateUserFace);
 
 export default router;

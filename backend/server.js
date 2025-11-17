@@ -7,6 +7,14 @@ import fs from "fs";
 
 const app = express();
 
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const contract = new ethers.Contract(
+    process.env.CONTRACT_ADDRESS,
+    Voting.abi,
+    provider
+);
+
+
 // --- Ensure folders exist ---
 ["dataset", "encodings", "temp"].forEach((folder) => {
   const dir = path.join(process.cwd(), folder);

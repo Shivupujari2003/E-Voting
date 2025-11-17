@@ -88,3 +88,36 @@ export const castVote = async (req, res) => {
     res.status(500).json({ error: "Failed to vote" });
   }
 };
+
+
+
+export const fetchElectionResults = async (req, res) => {
+      try {
+        // Fetch number of candidates
+        const count = await contract.getCandidatesCount();
+
+        let results = [];
+        for (let i = 0; i < count; i++) {
+            const c = await contract.candidates(i);
+            results.push({
+                id: i,
+                name: c.name,
+                votes: Number(c.voteCount)
+            });
+        }
+
+        // Example: if contract tracks total votes
+        let totalVotes = 0;
+        results.forEach(r => totalVotes += r.votes);
+
+        res.json({
+            candidates: results,
+            totalVotes
+        });
+
+    } catch (err) {
+        console.error("Error fetching results:", err);
+        res.status(500).json({ error: "Failed to fetch election results" });
+    }
+};
+
