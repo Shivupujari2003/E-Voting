@@ -1,10 +1,34 @@
 import Election from "../models/election.js";
 import User from "../models/User.js";
 import Vote from "../models/vote.js";
-
+import { votingContract } from "../blockchain.js";
 /* -------------------------------------------------------
    CREATE ELECTION (NO BLOCKCHAIN)
 ------------------------------------------------------- */
+// export const createElection = async (req, res) => {
+//   console.log("📩 CREATE ELECTION BODY:", req.body);
+
+//   try {
+//     const { candidates } = req.body;
+
+//     if (!candidates || candidates.length === 0) {
+//       return res.status(400).json({ error: "Candidates are required" });
+//     }
+
+//     // Save election in MongoDB directly
+//     const election = await Election.create(req.body);
+
+//     res.json({
+//       success: true,
+//       message: "Election created successfully",
+//       election
+//     });
+
+//   } catch (err) {
+//     console.error("❌ Election Create Error:", err);
+//     res.status(500).json({ error: "Failed to create election" });
+//   }
+// };
 export const createElection = async (req, res) => {
   console.log("📩 CREATE ELECTION BODY:", req.body);
 
@@ -15,12 +39,49 @@ export const createElection = async (req, res) => {
       return res.status(400).json({ error: "Candidates are required" });
     }
 
-    // Save election in MongoDB directly
+    /* 🔥 1️⃣ Add candidates to Blockchain BEFORE saving DB */
+    for (const c of candidates) {
+      console.log("📤 Adding candidate to blockchain:", c.name);
+
+      const tx = await votingContract.addCandidate(c.name);
+      await tx.wait(); // wait for blockchain confirmation
+    }
+
+    console.log("✅ All candidates added to blockchain");
+
+
+      const users = await User.find({}, "walletAddress");
+
+    console.log(`👥 Registering ${users.length} voters on blockchain`);
+
+    for (const user of users) {
+      if (!user.walletAddress) continue;
+
+      try {
+        const tx = await votingContract.registerVoter(user.walletAddress);
+        await tx.wait();
+        console.log(`   🟢 Registered: ${user.walletAddress}`);
+      } catch (err) {
+        console.log(`   🔴 Already registered or error: ${user.walletAddress}`);
+      }
+    }
+
+    console.log("✅ All voters registered on blockchain");
+
+
+    /* 🔥 2️⃣ Start election on Blockchain */
+    const startTx = await votingContract.startElection();
+    await startTx.wait();
+
+    console.log("🚀 Election started on blockchain");
+
+    /* 🔥 3️⃣ Save election in MongoDB */
     const election = await Election.create(req.body);
 
+    /* 🔥 4️⃣ Respond */
     res.json({
       success: true,
-      message: "Election created successfully",
+      message: "Election created and started on blockchain",
       election
     });
 

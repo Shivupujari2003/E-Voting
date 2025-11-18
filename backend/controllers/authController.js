@@ -34,10 +34,10 @@ export const registerUser = async (req, res) => {
     const assigned = ganacheWallets[ganacheIndex++];
     console.log("Assigned Wallet:", assigned.address);
 
-    admin = votingContract.signer;
-    admin.sendTransaction({ to: assigned.address, value: ethers.parseEther("1") });
+    // admin = votingContract.signer;
+    // admin.sendTransaction({ to: assigned.address, value: ethers.parseEther("1") });
     console.log(`Funded assigned wallet ${assigned.address} with 1 ETH`);
-    console.log(admin);
+    // console.log(admin);
 
     // -------------------------------
     // 2️⃣ Create dataset folder
