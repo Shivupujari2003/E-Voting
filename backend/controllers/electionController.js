@@ -1,6 +1,10 @@
-import Election from "../models/Election.js";
-import { votingContract } from "../blockchain.js";  // adjust path as needed
+import Election from "../models/election.js";
 import User from "../models/User.js";
+import Vote from "../models/vote.js";
+
+/* -------------------------------------------------------
+   CREATE ELECTION (NO BLOCKCHAIN)
+------------------------------------------------------- */
 export const createElection = async (req, res) => {
   console.log("📩 CREATE ELECTION BODY:", req.body);
 
@@ -11,49 +15,12 @@ export const createElection = async (req, res) => {
       return res.status(400).json({ error: "Candidates are required" });
     }
 
-    /* 🔥 1️⃣ Add candidates to Blockchain BEFORE saving DB */
-    for (const c of candidates) {
-      console.log("📤 Adding candidate to blockchain:", c.name);
-
-      const tx = await votingContract.addCandidate(c.name);
-      await tx.wait(); // wait for blockchain confirmation
-    }
-
-    console.log("✅ All candidates added to blockchain");
-
-
-      const users = await User.find({}, "walletAddress");
-
-    console.log(`👥 Registering ${users.length} voters on blockchain`);
-
-    for (const user of users) {
-      if (!user.walletAddress) continue;
-
-      try {
-        const tx = await votingContract.registerVoter(user.walletAddress);
-        await tx.wait();
-        console.log(`   🟢 Registered: ${user.walletAddress}`);
-      } catch (err) {
-        console.log(`   🔴 Already registered or error: ${user.walletAddress}`);
-      }
-    }
-
-    console.log("✅ All voters registered on blockchain");
-
-
-    /* 🔥 2️⃣ Start election on Blockchain */
-    const startTx = await votingContract.startElection();
-    await startTx.wait();
-
-    console.log("🚀 Election started on blockchain");
-
-    /* 🔥 3️⃣ Save election in MongoDB */
+    // Save election in MongoDB directly
     const election = await Election.create(req.body);
 
-    /* 🔥 4️⃣ Respond */
     res.json({
       success: true,
-      message: "Election created and started on blockchain",
+      message: "Election created successfully",
       election
     });
 
@@ -65,14 +32,14 @@ export const createElection = async (req, res) => {
 
 
 /* -------------------------------------------------------
-   GET ALL ELECTIONS  (AUTO-EXPIRE)
+   GET ALL ELECTIONS (AUTO-EXPIRE)
 ------------------------------------------------------- */
 export const getElections = async (req, res) => {
   try {
     let elections = await Election.find();
     const now = Date.now();
 
-    // Auto-mark as completed if time passed
+    // Auto-mark completed elections
     const updates = elections.map(async (e) => {
       if (e.endTime && new Date(e.endTime).getTime() < now && e.status !== "completed") {
         e.status = "completed";
@@ -82,7 +49,6 @@ export const getElections = async (req, res) => {
 
     await Promise.all(updates);
 
-    // Fetch updated list again
     elections = await Election.find();
 
     res.json(elections);
@@ -90,6 +56,7 @@ export const getElections = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch elections" });
   }
 };
+
 
 /* -------------------------------------------------------
    DELETE ELECTION
@@ -103,12 +70,13 @@ export const deleteElection = async (req, res) => {
   }
 };
 
+
 /* -------------------------------------------------------
-   CAST VOTE  (BLOCK IF EXPIRED)
+   CAST VOTE (NO BLOCKCHAIN)
 ------------------------------------------------------- */
 export const castVote = async (req, res) => {
   try {
-    const { electionId, candidateId, walletAddress } = req.body;
+    const { electionId, candidateId, userId } = req.body;
 
     const election = await Election.findById(electionId);
     if (!election)
@@ -122,7 +90,12 @@ export const castVote = async (req, res) => {
       return res.status(400).json({ error: "Election has ended" });
     }
 
-    // ------------ MONGO UPDATE ------------
+    // ------------ CHECK IF USER ALREADY VOTED ------------
+    const alreadyVoted = election.voters?.includes(userId);
+    if (alreadyVoted)
+      return res.status(400).json({ error: "You have already voted in this election" });
+
+    // ------------ UPDATE MONGO ------------
     const candidate = election.candidates.find((c) => c.id === candidateId);
     if (!candidate)
       return res.status(404).json({ error: "Candidate not found" });
@@ -130,54 +103,105 @@ export const castVote = async (req, res) => {
     candidate.votes += 1;
     election.totalVotes += 1;
 
+    // store userId to prevent duplicate votes
+    if (!election.voters) election.voters = [];
+    election.voters.push(userId);
+
     await election.save();
 
-    // ------------ BLOCKCHAIN VOTE ------------
-    try {
-      console.log("📤 Casting vote on blockchain...");
-      const tx = await votingContract.connect(walletAddress).vote(Number(candidateId));
-      await tx.wait();
-      console.log("✅ Blockchain vote successful");
-    } catch (bcErr) {
-      console.error("⚠ Blockchain Vote Failed:", bcErr);
-      // We still allow Mongo success but notify blockchain failure
-    }
+    // Store vote history (optional)
+    await Vote.create({
+      electionId,
+      voterId: userId,
+      candidateId
+    });
 
-    res.json({ success: true, election });
+    return res.json({ success: true, election });
 
   } catch (err) {
-    console.log("❌ Vote Error:", err);
+    console.error("❌ Vote Error:", err);
     res.status(500).json({ error: "Failed to vote" });
   }
 };
 
+
+/* -------------------------------------------------------
+   FETCH ELECTION RESULTS (NO BLOCKCHAIN)
+------------------------------------------------------- */
+// electionController.js
+
+// Helper function to determine the winner of a single election
+// electionController.js
+
+const determineWinner = (candidates) => {
+  if (!candidates || candidates.length === 0) {
+    return { name: "No Candidates", votes: 0 };
+  }
+
+  // Use reduce to find the candidate with the maximum votes
+  const winner = candidates.reduce((prev, current) => {
+    // 🛑 FIX: Changed .voteCount to .votes to match MongoDB schema
+    const currentVotes = Number(current.votes); 
+    const prevVotes = Number(prev.votes);       // 🛑 FIX: Changed .voteCount to .votes
+
+    return (currentVotes > prevVotes) ? current : prev;
+  }, candidates[0]); // Start comparison with the first candidate
+
+  // Check for ties: count how many candidates have the max vote count
+  // 🛑 FIX: Changed .voteCount to .votes
+  const maxVotes = Number(winner.votes); 
+  const tiedCandidates = candidates.filter(c => Number(c.votes) === maxVotes); // 🛑 FIX: Changed .voteCount to .votes
+
+  if (tiedCandidates.length > 1) {
+    // If there's a tie, return the names of all tied candidates
+    return {
+      name: tiedCandidates.map(c => c.name).join(' & '),
+      votes: maxVotes,
+      status: "TIE"
+    };
+  }
+
+  return {
+    name: winner.name,
+    votes: maxVotes,
+    status: "WINNER"
+  };
+};
+
+
 export const fetchElectionResults = async (req, res) => {
   try {
-    // ---------- BLOCKCHAIN LOGIC ----------
-    const count = await votingContract.candidatesCount();
+    // Fetch ALL elections and select necessary fields
+    const allElections = await Election.find().select('title candidates totalVotes');
 
-    let bcResults = [];
-    for (let i = 1; i <= count; i++) {
-      const c = await votingContract.candidates(i);
-
-      bcResults.push({
-        id: Number(i),
-        name: c.name,
-        votes: Number(c.voteCount)
-      });
+    if (!allElections || allElections.length === 0) {
+      return res.status(404).json({ error: "No elections found" });
     }
 
-    let totalVotes = bcResults.reduce((acc, c) => acc + c.votes, 0);
+    // Map the results to include the calculated winner for each election
+    const resultsWithWinner = allElections.map(election => {
+      const winnerData = determineWinner(election.candidates);
 
-    // ---------- SEND RESULTS ----------
-    res.json({
+      return {
+        _id: election._id,
+        title: election.title,
+        totalVotes: election.totalVotes,
+        candidates: election.candidates, 
+        // 💡 NEW FIELDS ADDED:
+        winner: winnerData.name,
+        winningVotes: winnerData.votes,
+        status: winnerData.status // To clearly indicate a tie
+      };
+    });
+
+    return res.json({
       success: true,
-      candidates: bcResults,
-      totalVotes
+      elections: resultsWithWinner,
+      totalCount: resultsWithWinner.length
     });
 
   } catch (err) {
-    console.error("Error fetching results:", err);
-    res.status(500).json({ error: "Failed to fetch election results" });
+    console.error("❌ All Results Fetch Error:", err);
+    res.status(500).json({ error: "Failed to fetch all election results" });
   }
 };

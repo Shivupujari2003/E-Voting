@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
+
 const voteSchema = new mongoose.Schema({
-  electionId: String,
-  voterId: String,
+  electionId: { type: mongoose.Schema.Types.ObjectId, ref: "Election" },
+  voterId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   candidateId: String,
-  txHash: String,
-  blockNumber: Number,
-  confidence: Number,
+
   createdAt: { type: Date, default: Date.now },
 });
+
 export default mongoose.model("Vote", voteSchema);

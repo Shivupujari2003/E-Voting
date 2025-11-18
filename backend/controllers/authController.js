@@ -3,36 +3,51 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
+import { votingContract } from "../blockchain.js";
+
+// import Ganache wallets
+import { ganacheWallets } from "../Wallet.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Start assigning wallets from index 1 (index 0 reserved for Admin)
+let ganacheIndex = 0;
+
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, contact, password, walletAddress, photos } = req.body;
-
-    /* Step 0: Prevent duplicate wallet registration */
-    const existingWallet = await User.findOne({ walletAddress });
-    if (existingWallet) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "This wallet is already registered. Please switch MetaMask account.",
-      });
-    }
+    const { name, email, contact, password, photos } = req.body;
 
     if (!photos || photos.length < 3) {
       return res.status(400).json({ error: "Three photos required." });
     }
 
-    /* Step 1: Create Voter ID */
-    const voterId = email.split("@")[0] + "_" + Date.now();
+    // -------------------------------
+    // 1️⃣ Assign Wallet from ganacheWallets.js
+    // -------------------------------
+    if (ganacheIndex >= ganacheWallets.length) {
+      return res.status(400).json({
+        error: "No more Ganache accounts available",
+      });
+    }
 
-    /* Step 2: Create dataset folder */
+    const assigned = ganacheWallets[ganacheIndex++];
+    console.log("Assigned Wallet:", assigned.address);
+
+    admin = votingContract.signer;
+    admin.sendTransaction({ to: assigned.address, value: ethers.parseEther("1") });
+    console.log(`Funded assigned wallet ${assigned.address} with 1 ETH`);
+    console.log(admin);
+
+    // -------------------------------
+    // 2️⃣ Create dataset folder
+    // -------------------------------
+    const voterId = email.split("@")[0] + "_" + Date.now();
+    // const voterId = email;
     const voterDatasetPath = path.join(__dirname, "..", "dataset", email);
+
     fs.mkdirSync(voterDatasetPath, { recursive: true });
 
-    /* Step 3: Save images */
     photos.forEach((img, i) => {
       const buffer = Buffer.from(
         img.replace(/^data:image\/\w+;base64,/, ""),
@@ -41,7 +56,9 @@ export const registerUser = async (req, res) => {
       fs.writeFileSync(path.join(voterDatasetPath, `${i}.jpg`), buffer);
     });
 
-    /* Step 4: Run Python encoding */
+    // -------------------------------
+    // 3️⃣ Run Python face encoding
+    // -------------------------------
     const encodeScript = path.join(
       __dirname,
       "..",
@@ -54,23 +71,31 @@ export const registerUser = async (req, res) => {
     const faceEncodingPath = `encodings/${email}_face_recognition.npy`;
     const robustEncodingPath = `encodings/${email}_robust.npy`;
 
-    /* Step 5: Save user in DB */
+    // -------------------------------
+    // 4️⃣ Save user to MongoDB
+    // -------------------------------
     await User.create({
       voterId,
       name,
       email,
       contact,
       password,
-      walletAddress,
+      walletAddress: assigned.address,
+      privateKey: assigned.privateKey, // store private for backend use
       faceEncodingFile: faceEncodingPath,
       robustEncodingFile: robustEncodingPath,
     });
 
+    // -------------------------------
+    // 5️⃣ Send response
+    // -------------------------------
     return res.json({
       success: true,
       message: "User registered successfully",
       voterId,
+      wallet: assigned.address,
     });
+
   } catch (err) {
     console.log("❌ Register Error:", err);
     res.status(500).json({ error: "Registration failed" });
@@ -93,16 +118,29 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ error: "Invalid password" });
     }
 
+    // Do NOT send password or internal fields
+    const safeUser = {
+      _id: user._id,
+      voterId: user.voterId,
+      name: user.name,
+      email: user.email,
+      contact: user.contact,
+      walletAddress: user.walletAddress,
+      privateKey: user.privateKey, // REMOVE this if not needed in frontend
+      createdAt: user.createdAt,
+    };
+
     return res.json({
       success: true,
-      voterId: user.voterId,
-      wallet: user.walletAddress,
+      user: safeUser,
     });
+
   } catch (err) {
     console.log("❌ Login Error:", err);
     res.status(500).json({ error: "Login failed" });
   }
 };
+
 
 /* ============================================================
    VERIFY FACE (Python call)

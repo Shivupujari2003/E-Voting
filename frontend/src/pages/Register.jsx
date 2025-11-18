@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { registerUser, checkWalletExists } from "../services/api";
-import { ethers } from "ethers";
+import { registerUser } from "../services/api";
 
 export default function Register() {
   const navigate = useNavigate();
-
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState({});
   const videoRef = useRef(null);
@@ -16,13 +14,10 @@ export default function Register() {
     contact: "",
     password: "",
     confirmPassword: "",
-    walletAddress: "",
     photos: [],
   });
 
-  /* -------------------------------------------
-     STEP 1 VALIDATION
-  -------------------------------------------- */
+  /* ---------------------- VALIDATION ---------------------- */
   const validateStep1 = () => {
     const err = {};
 
@@ -38,16 +33,12 @@ export default function Register() {
     return Object.keys(err).length === 0;
   };
 
-  /* -------------------------------------------
-     CAMERA & FACE CAPTURE
-  -------------------------------------------- */
+  /* ---------------------- CAMERA ---------------------- */
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
     } catch (err) {
       alert("Camera access denied");
     }
@@ -68,75 +59,11 @@ export default function Register() {
     const imgData = canvas.toDataURL("image/jpeg");
 
     if (formData.photos.length < 10) {
-      setFormData((prev) => ({
-        ...prev,
-        photos: [...prev.photos, imgData],
-      }));
+      setFormData((prev) => ({ ...prev, photos: [...prev.photos, imgData] }));
     }
   };
 
-  /* -------------------------------------------
-     CONNECT METAMASK + CHECK DUPLICATE WALLET
-  -------------------------------------------- */
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("MetaMask is not installed");
-      return;
-    }
-
-    try {
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const walletAddress = await signer.getAddress();
-
-      // 🔥 CHECK IF WALLET IS ALREADY REGISTERED
-      const check = await checkWalletExists(walletAddress);
-
-      if (check.exists) {
-        alert("❌ This wallet is already registered! Switch MetaMask account.");
-        setFormData({ ...formData, walletAddress: "" });
-        return;
-      }
-
-      // Wallet is unique → store it
-      setFormData({ ...formData, walletAddress });
-      alert("Wallet Connected!");
-    } catch (err) {
-      console.error("Wallet connection failed:", err);
-      alert("Failed to connect wallet");
-    }
-  };
-
-  /* Update wallet on MetaMask account change */
-  useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", async (accounts) => {
-        const newWallet = accounts[0] || "";
-
-        if (!newWallet) {
-          setFormData((prev) => ({ ...prev, walletAddress: "" }));
-          return;
-        }
-
-        // Check again if wallet is already registered
-        const check = await checkWalletExists(newWallet);
-
-        if (check.exists) {
-          alert("❌ This wallet is already registered!");
-          setFormData((prev) => ({ ...prev, walletAddress: "" }));
-          return;
-        }
-
-        setFormData((prev) => ({ ...prev, walletAddress: newWallet }));
-      });
-    }
-  }, []);
-
-  /* -------------------------------------------
-     SUBMIT REGISTRATION
-  -------------------------------------------- */
+  /* ---------------------- SUBMIT ---------------------- */
   const handleRegister = async () => {
     const res = await registerUser(formData);
 
@@ -148,11 +75,9 @@ export default function Register() {
     }
   };
 
-  const progress = (step / 3) * 100;
+  const progress = (step / 2) * 100;
 
-  /* -------------------------------------------
-     UI OUTPUT
-  -------------------------------------------- */
+  /* ---------------------- UI ---------------------- */
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -171,9 +96,7 @@ export default function Register() {
             </div>
           </div>
 
-          {/* --------------------------------------
-               STEP 1 — BASIC INFORMATION
-          --------------------------------------- */}
+          {/* STEP 1 — BASIC INFO */}
           {step === 1 && (
             <>
               <h3 className="text-xl font-semibold mb-4">Basic Information</h3>
@@ -253,19 +176,12 @@ export default function Register() {
             </>
           )}
 
-          {/* --------------------------------------
-               STEP 2 — CAPTURE PHOTOS
-          --------------------------------------- */}
+          {/* STEP 2 — PHOTOS */}
           {step === 2 && (
             <>
-              <h3 className="text-xl font-semibold mb-4">
-                Capture Your Face
-              </h3>
+              <h3 className="text-xl font-semibold mb-4">Capture Your Face</h3>
 
-              <video
-                ref={videoRef}
-                className="w-full aspect-video bg-black rounded"
-              />
+              <video ref={videoRef} className="w-full bg-black rounded" />
 
               <button
                 onClick={capturePhoto}
@@ -276,9 +192,9 @@ export default function Register() {
               </button>
 
               <div className="flex gap-3 mt-4 flex-wrap">
-                {formData.photos.map((img, i) => (
+                {formData.photos.map((img, idx) => (
                   <img
-                    key={i}
+                    key={idx}
                     src={img}
                     className="w-24 h-24 object-cover rounded border"
                   />
@@ -287,44 +203,7 @@ export default function Register() {
 
               <button
                 disabled={formData.photos.length < 10}
-                onClick={() => setStep(3)}
-                className="w-full mt-6 bg-blue-600 text-white py-3 rounded disabled:opacity-50"
-              >
-                Next: Connect Wallet →
-              </button>
-            </>
-          )}
-
-          {/* --------------------------------------
-               STEP 3 — CONNECT WALLET
-          --------------------------------------- */}
-          {step === 3 && (
-            <>
-              <h3 className="text-xl font-semibold mb-4">Connect Wallet</h3>
-
-              <div className="p-4 border rounded bg-gray-50 text-center">
-                {formData.walletAddress ? (
-                  <>
-                    <p className="text-green-700 font-bold">
-                      Wallet Connected
-                    </p>
-                    <p className="text-sm font-mono break-all">
-                      {formData.walletAddress}
-                    </p>
-                  </>
-                ) : (
-                  <button
-                    onClick={connectWallet}
-                    className="bg-orange-600 text-white px-6 py-3 rounded"
-                  >
-                    Connect MetaMask
-                  </button>
-                )}
-              </div>
-
-              <button
                 onClick={handleRegister}
-                disabled={!formData.walletAddress}
                 className="w-full mt-6 bg-green-600 text-white py-3 rounded disabled:opacity-50"
               >
                 Complete Registration ✔

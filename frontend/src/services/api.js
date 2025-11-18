@@ -33,15 +33,6 @@ export const verifyFace = async (data) => {
   }
 };
 
-export const checkWalletExists = async (walletAddress) => {
-  try {
-    const res = await API.post("/auth/check-wallet", { walletAddress });
-    return res.data;
-  } catch (err) {
-    return { exists: false, error: "Server Error" };
-  }
-};
-
 /* --------------------------- ELECTION APIs --------------------------- */
 
 // CREATE election
@@ -57,7 +48,7 @@ export const createElection = async (data) => {
 // GET all elections
 export const getElections = async () => {
   try {
-    const res = await API.get("/auth/election/all");   // ✔ FIXED
+    const res = await API.get("/auth/election/all");
     return res.data;
   } catch (err) {
     return { error: "Failed to fetch elections" };
@@ -74,30 +65,33 @@ export const deleteElection = async (id) => {
   }
 };
 
-// CAST vote
-export const castVote = async (electionId, candidateId) => {
+// -------------------------------------------
+// UPDATED CAST VOTE (NO PRIVATE KEY)
+// -------------------------------------------
+export const castVote = async (electionId, candidateId, userId) => {
   try {
     const res = await API.post("/auth/election/vote", {
       electionId,
       candidateId,
+      userId,
     });
     return res.data;
   } catch (err) {
-    return { error: "Failed to cast vote" };
+    return { error: err.response?.data?.error || "Failed to cast vote" };
   }
 };
 
-
-// GET election by ID
-export const fetchElectionResults = async (id) => {
+// GET election results
+export const fetchElectionResults = async () => {
   try {
-    const res = await API.get(`/auth/election/${id}`);
+    // 💡 CHANGE 1: Removed the 'id' parameter from the function signature.
+    // 💡 CHANGE 2: Updated the endpoint to the new, non-parameterized route for all results.
+    const res = await API.get(`/auth/election/all-results`);
     return res.data;
   } catch (err) {
-    return { error: "Failed to fetch election" };
+    return { error: "Failed to fetch all election results" };
   }
 };
-
 
 // GET user profile
 export const fetchUserProfile = async (userId) => {
@@ -108,23 +102,3 @@ export const fetchUserProfile = async (userId) => {
     return { error: "Failed to fetch user profile" };
   }
 };
-
-// UPDATE user profile
-// export const updateUserProfile = async (userId, updateData) => {
-//   try {
-//     const res = await API.put(`/auth/user/${userId}`, updateData);
-//     return res.data;
-//   } catch (err) {
-//     return { error: "Failed to update user profile" };
-//   }
-// };
-
-// // UPDATE user face data
-// export const updateUserFace = async (userId, faceData) => {
-//   try {
-//     const res = await API.put(`/auth/user/${userId}/face`, faceData);
-//     return res.data;
-//   } catch (err) {
-//     return { error: "Failed to update user face data" };
-//   }
-// };

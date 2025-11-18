@@ -7,17 +7,15 @@ import QuickStats from "../components/QuickStats.jsx";
 import ElectionCard from "../components/ElectionCard";
 import VoteModal from "../components/VoteModal";
 
-import { ethers } from "ethers";
-import Voting from "../contracts/Voting.json"; // ABI
-import { getElections } from "../services/api"; // Backend elections API
+import { castVote, getElections } from "../services/api";
 
 export default function VoterDashboard() {
   const navigate = useNavigate();
 
-  // Logged-in user details
+  // ⭐ Get logged-in user from local storage
   const storedUser = JSON.parse(localStorage.getItem("user")) || {
-    name: "User",
-    walletAddress: "0x000000000000",
+    name: "Unknown User",
+    _id: null,
   };
 
   const [elections, setElections] = useState([]);
@@ -26,18 +24,15 @@ export default function VoterDashboard() {
   const [auditLog, setAuditLog] = useState([]);
 
   // ============================================================
-  // 🔥 Fetch Elections From Backend (backend gives RAW ARRAY)
+  // 🔥 Fetch Elections From Backend
   // ============================================================
   useEffect(() => {
     const fetchData = async () => {
       const response = await getElections();
-      console.log("Backend response:", response);
+      console.log("Elections:", response);
 
-      if (response.error) {
-        console.error("Error fetching elections:", response.error);
-      } else {
-        // Backend returns `[ {...}, {...} ]`
-        setElections(response || []);
+      if (!response.error) {
+        setElections(response);
       }
     };
 
@@ -45,43 +40,36 @@ export default function VoterDashboard() {
   }, []);
 
   // ============================================================
-  // 🔥 Blockchain Vote Function (works with Vite env)
+  // 🔥 SIMPLE BACKEND VOTE (NO BLOCKCHAIN)
   // ============================================================
-  const voteOnBlockchain = async (candidateId) => {
+  const voteOnBackend = async (electionId, candidateId) => {
     try {
-      if (!window.ethereum) {
-        alert("MetaMask not installed!");
-        return null;
-      }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-
-      // ⭐ FIX: Vite env variable
-      const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
-
-      const contract = new ethers.Contract(contractAddress, Voting.abi, signer);
-
-      const tx = await contract.vote(candidateId);
-      const receipt = await tx.wait();
-
-      return receipt;
+      const res = await castVote(electionId, candidateId, storedUser._id);
+      return res;
     } catch (err) {
-      console.error("Blockchain vote error:", err);
-      alert("⚠ Voting failed. Check console.");
+      console.error("Vote error:", err);
+      alert("⚠ Voting failed!");
       return null;
     }
   };
 
   // ============================================================
-  // 🔥 Handle Vote Completion
+  // 🔥 After Vote Success
   // ============================================================
   const handleVoteSuccess = async (electionId, candidateId, candidateName) => {
-    const receipt = await voteOnBlockchain(candidateId);
-    if (!receipt) return;
+    const result = await voteOnBackend(electionId, candidateId);
 
+    console.log("🔍 Vote response:", result);
+
+    if (!result || result.error) {
+      alert("Vote failed: " + (result.error || "Unknown error"));
+      return;
+    }
+
+    // Mark election as voted
     setVotedElections((prev) => [...prev, electionId]);
 
+    // Add to audit log
     setAuditLog((prev) => [
       {
         id: Date.now(),
@@ -90,7 +78,6 @@ export default function VoterDashboard() {
         electionId,
         candidateId,
         candidateName,
-        txHash: receipt.hash,
       },
       ...prev,
     ]);
@@ -99,7 +86,7 @@ export default function VoterDashboard() {
   };
 
   // ============================================================
-  // 🔥 Filter elections (use _id)
+  // 🔥 Sorting elections
   // ============================================================
   const activeElections = elections.filter(
     (e) => e.status === "active" && !votedElections.includes(e._id)
@@ -112,8 +99,6 @@ export default function VoterDashboard() {
   // ============================================================
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-
-      {/* Header */}
       <TopBar
         name={storedUser.name}
         walletAddress={storedUser.walletAddress}
@@ -121,7 +106,6 @@ export default function VoterDashboard() {
       />
 
       <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
-
         {/* Sidebar */}
         <aside className="lg:col-span-1">
           <Sidebar navigate={navigate} />
@@ -130,7 +114,6 @@ export default function VoterDashboard() {
 
         {/* Main Content */}
         <main className="lg:col-span-3">
-
           {/* Active Elections */}
           <section className="mb-8">
             <h2 className="text-2xl font-bold mb-4">🔴 Active Elections</h2>
@@ -163,7 +146,6 @@ export default function VoterDashboard() {
               />
             ))}
           </section>
-
         </main>
       </div>
 

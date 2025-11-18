@@ -13,6 +13,7 @@ export default function VoterLogin() {
   const [step, setStep] = useState(1);
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [wallet, setWallet] = useState("");
+  const [loggedUser, setLoggedUser] = useState(null);
 
   /* ----------------------------------------------------
      STOP CAMERA
@@ -20,12 +21,8 @@ export default function VoterLogin() {
   const stopCamera = () => {
     try {
       if (!videoRef.current) return;
-
       const stream = videoRef.current.srcObject;
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
+      if (stream) stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     } catch (err) {
       console.warn("Camera stop error:", err);
@@ -33,7 +30,7 @@ export default function VoterLogin() {
   };
 
   /* ----------------------------------------------------
-     LOGIN → MOVE TO STEP 2
+     LOGIN → FETCH USER FROM BACKEND → STORE LOCALLY
   ---------------------------------------------------- */
   const handleLogin = async () => {
     if (!credentials.email || !credentials.password) {
@@ -46,20 +43,17 @@ export default function VoterLogin() {
       password: credentials.password,
     });
 
-    if (res.error) {
-      alert(res.error);
+    if (res.error || !res.success) {
+      alert(res.error || "Login failed");
       return;
     }
 
-    // ⭐ Save basic user info temporarily for later storage
-    localStorage.setItem(
-      "tempUser",
-      JSON.stringify({
-        email: credentials.email,
-        voterId: res.voterId,
-        walletAddress: res.wallet, // may be empty if not stored yet
-      })
-    );
+    const userData = res.user; // full MongoDB user
+
+    // Save full user data into localStorage
+    localStorage.setItem("user", JSON.stringify(userData));
+
+    setLoggedUser(userData);
 
     startCamera();
     setStep(2);
@@ -71,7 +65,6 @@ export default function VoterLogin() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
@@ -88,8 +81,9 @@ export default function VoterLogin() {
     if (verifyInterval.current !== null) return;
 
     verifyInterval.current = setInterval(async () => {
-      if (!videoRef.current) return;
+      if (!videoRef.current || !loggedUser) return;
 
+      // Capture frame
       const canvas = document.createElement("canvas");
       canvas.width = 400;
       canvas.height = 300;
@@ -99,8 +93,9 @@ export default function VoterLogin() {
 
       const capturedImage = canvas.toDataURL("image/jpeg");
 
+      // Send to backend
       const res = await verifyFace({
-        voterId: credentials.email,
+        voterId: loggedUser.email, // MUST use voterId from DB
         image: capturedImage,
       });
 
@@ -112,12 +107,12 @@ export default function VoterLogin() {
         alert("Face Verified!");
         setStep(3);
       }
-    }, 4000); // Every 4 seconds
+    }, 4000);
   };
 
   useEffect(() => {
-    if (step === 2) startContinuousVerification();
-  }, [step]);
+    if (step === 2 && loggedUser) startContinuousVerification();
+  }, [step, loggedUser]);
 
   useEffect(() => {
     return () => {
@@ -127,7 +122,7 @@ export default function VoterLogin() {
   }, []);
 
   /* ----------------------------------------------------
-     CONNECT METAMASK & COMPLETE LOGIN
+     CONNECT METAMASK → UPDATE LOCALSTORAGE USER
   ---------------------------------------------------- */
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -145,25 +140,16 @@ export default function VoterLogin() {
       setWallet(address);
       alert("Wallet Connected!");
 
-      // Get stored user
-      const tempUser = JSON.parse(localStorage.getItem("tempUser"));
+      // Update localstorage user object
+      const updatedUser = {
+        ...loggedUser,
+        walletAddress: address,
+      };
 
-      // ⭐ Save final user info for Dashboard + TopBar
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          name: tempUser?.email.split("@")[0], // You can replace with backend name later
-          email: tempUser?.email,
-          voterId: tempUser?.voterId,
-          walletAddress: address,
-        })
-      );
-
-      // Remove temp
-      localStorage.removeItem("tempUser");
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setLoggedUser(updatedUser);
 
       stopCamera();
-
       navigate("/voter/dashboard");
     } catch (error) {
       console.error(error);
@@ -179,9 +165,7 @@ export default function VoterLogin() {
       <Navbar />
 
       <div className="max-w-xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-center mb-6">
-          Secure Voter Login
-        </h1>
+        <h1 className="text-3xl font-bold text-center mb-6">Secure Voter Login</h1>
 
         {/* STEP INDICATOR */}
         <div className="flex justify-between mb-8 text-center">
@@ -191,8 +175,7 @@ export default function VoterLogin() {
               <div className="flex-1" key={index}>
                 <div
                   className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-white 
-                  ${step === n ? "bg-blue-600" : step > n ? "bg-green-600" : "bg-gray-400"}`}
-                >
+                  ${step === n ? "bg-blue-600" : step > n ? "bg-green-600" : "bg-gray-400"}`}>
                   {step > n ? "✓" : n}
                 </div>
                 <p className="text-xs mt-1">{s}</p>
@@ -258,9 +241,7 @@ export default function VoterLogin() {
                 </button>
               </>
             ) : (
-              <p className="text-green-600 font-mono break-all mt-3">
-                {wallet}
-              </p>
+              <p className="text-green-600 font-mono break-all mt-3">{wallet}</p>
             )}
           </div>
         )}

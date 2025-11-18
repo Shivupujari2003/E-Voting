@@ -14,11 +14,7 @@ import {
   fetchElectionResults
 } from "../controllers/electionController.js";
 
-import {
-  // updateUserProfile,
-  // updateUserFace,
-  fetchUserProfile
-} from "../controllers/profileController.js";
+import { fetchUserProfile } from "../controllers/profileController.js";
 
 const router = express.Router();
 
@@ -28,16 +24,18 @@ router.post("/login", loginUser);
 router.post("/verify-face", verifyFace);
 router.post("/check-wallet", checkWalletExists);
 
-/* ELECTION (MATCHING FRONTEND) */
-router.post("/election/create", createElection);              // CREATE
-router.get("/election/all", getElections);                 // GET ALL
-router.delete("/election/:id", deleteElection);        // DELETE
-router.post("/election/vote", castVote);               // VOTE
-router.get("/election/:id/results", fetchElectionResults); // RESULTS
+/* ELECTION */
+router.post("/election/create", createElection);
+router.get("/election/all", getElections);
+
+router.post("/election/vote", castVote);  
+// router.get("/election/results", fetchElectionResults);
+router.get("/election/all-results", fetchElectionResults);
+
+
+router.delete("/election/:id", deleteElection); 
 
 /* PROFILE */
 router.get("/user/:userId", fetchUserProfile);
-// router.put("/user/:userId", updateUserProfile);
-// router.put("/user/:userId/face", updateUserFace);
 
 export default router;

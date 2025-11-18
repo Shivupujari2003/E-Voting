@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   contact: String,
   password: String,
   walletAddress: String,
-
+  privateKey: String,
   faceEncodingFile: String,
   robustEncodingFile: String,
 
